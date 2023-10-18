@@ -9,11 +9,15 @@ router.get('/open', async (req, res) => {
   const { limit, offset } = req.query;
 
   // Ensure limit and offset are valid numbers
-  const limitNumber = parseInt(limit);
-  const offsetNumber = parseInt(offset);
-  if (isNaN(limitNumber) || isNaN(offsetNumber)) {
-    return res.status(400).json({ error: 'Invalid limit or offset values' });
-  }
+  var limitNumber = parseInt(limit);
+  var offsetNumber = parseInt(offset);
+
+  //Default parameters if they are invalid
+  if (isNaN(limitNumber))
+    limitNumber = 0;
+  if (isNaN(offsetNumber))
+    offsetNumber = 0;
+
 
   try {
 
