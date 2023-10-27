@@ -2,6 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const pool = require('../app');
+const { DateTime } = require('luxon');
 
 // Return open tenders list
 router.get('/open', async (req, res) => {
@@ -31,13 +32,39 @@ router.get('/open', async (req, res) => {
     }
 
     const query = {
-      text: 'SELECT * FROM "Tenders" LIMIT $1 OFFSET $2',
+      text: 'SELECT * FROM "Tenders" ORDER BY pub_date DESC LIMIT $1 OFFSET $2',
       values: [limitNumber, offsetNumber],
     };
 
     const result = await pool.query(query);
 
-    res.json(result.rows);
+    const formattedRows = result.rows.map(row => {
+
+      var pubDate = row.pub_date
+      var closingDate = row.closing_date
+      
+      // Format dates from timestamps
+      if (row.pub_date) {
+        pubDate = DateTime.fromSeconds(parseInt(row.pub_date.toFixed(0)));
+        closingDate = DateTime.fromSeconds(parseInt(row.closing_date.toFixed(0)));
+      }
+      
+      return { id: row.nt_id,
+              title: row.nt_title,
+              category: row.proc_cat,
+              buyer_org : row.buying_org,
+              publication_date: pubDate, 
+              closing_date: closingDate,
+              bid_type : row.nt_type,
+              procurement_method : row.proc_method,
+              selection_criteria : row.sel_criteria,
+              link : row.ext_link.length > 0 ?  row.ext_link  :  row.nt_link,
+              unspsc : row.unspsc,
+              gsin : row.gsin,
+      };
+
+    });
+    res.json(formattedRows);
   } catch (error) {
     console.error('Error fetching data:', error);
     res.status(500).json({ error: 'An error occurred while fetching data.' });
