@@ -15,7 +15,7 @@ router.get('/open', async (req, res) => {
 
   //Default parameters if they are invalid
   if (isNaN(limitNumber))
-    limitNumber = 0;
+    limitNumber = 200;
   if (isNaN(offsetNumber))
     offsetNumber = 0;
 
@@ -32,7 +32,7 @@ router.get('/open', async (req, res) => {
     }
 
     const query = {
-      text: 'SELECT * FROM "Tenders" ORDER BY pub_date DESC LIMIT $1 OFFSET $2',
+      text: 'SELECT * FROM "Tenders" WHERE closing_date > extract(epoch from now()) ORDER BY pub_date DESC LIMIT $1 OFFSET $2',
       values: [limitNumber, offsetNumber],
     };
 
@@ -42,13 +42,16 @@ router.get('/open', async (req, res) => {
 
       var pubDate = row.pub_date
       var closingDate = row.closing_date
-      
-      // Format dates from timestamps
-      if (row.pub_date) {
+
+      // Format publication date from timestamp
+      if (row.pub_date) 
         pubDate = DateTime.fromSeconds(parseInt(row.pub_date.toFixed(0)));
-        closingDate = DateTime.fromSeconds(parseInt(row.closing_date.toFixed(0)));
-      }
       
+      // Format closing date from timestamp
+      if(row.closing_date)
+        closingDate = DateTime.fromSeconds(parseInt(row.closing_date.toFixed(0)));
+
+
       return { id: row.nt_id,
               title: row.nt_title,
               category: row.proc_cat,
