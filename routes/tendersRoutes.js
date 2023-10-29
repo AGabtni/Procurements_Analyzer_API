@@ -23,7 +23,7 @@ router.get('/open', async (req, res) => {
   try {
 
     // Validate that the offset is within table rows count
-    const rowCountQuery = 'SELECT COUNT(*) FROM "Tenders"';
+    const rowCountQuery = 'SELECT COUNT(*) FROM "tender_header"';
     const rowCountResult = await pool.query(rowCountQuery);
     const rowCount = parseInt(rowCountResult.rows[0].count, 10);
 
@@ -32,7 +32,7 @@ router.get('/open', async (req, res) => {
     }
 
     const query = {
-      text: 'SELECT * FROM "Tenders" WHERE closing_date > extract(epoch from now()) ORDER BY pub_date DESC LIMIT $1 OFFSET $2',
+      text: 'SELECT * FROM "tender_header" WHERE closing_date > extract(epoch from now()) ORDER BY pub_date DESC LIMIT $1 OFFSET $2',
       values: [limitNumber, offsetNumber],
     };
 
