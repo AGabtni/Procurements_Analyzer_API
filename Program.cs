@@ -10,6 +10,7 @@ builder.Services.AddDbContext<ProcurementsDbContext>(options =>
 
 // Services
 builder.Services.AddScoped<TenderService>();
+builder.Services.AddScoped<CompanyService>();
 
 // Controllers + Swagger
 builder.Services.AddControllers();

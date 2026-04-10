@@ -13,6 +13,9 @@ public class ProcurementsDbContext : DbContext
     public DbSet<TenderNotice> TenderNotices { get; set; }
     public DbSet<TenderHeader> TenderHeaders { get; set; }
     public DbSet<TenderDocument> TenderDocuments { get; set; }
+    public DbSet<CompanyProfile> CompanyProfiles { get; set; }
+    public DbSet<CompanyPreferences> CompanyPreferences { get; set; }
+    public DbSet<CompanyMatch> CompanyMatches { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -21,6 +24,33 @@ public class ProcurementsDbContext : DbContext
         {
             entity.Property(e => e.Unspsc).HasColumnType("integer[]");
             entity.Property(e => e.Gsin).HasColumnType("text[]");
+        });
+
+        modelBuilder.Entity<CompanyProfile>(entity =>
+        {
+            entity.Property(e => e.Keywords).HasColumnType("varchar[]");
+            entity.Property(e => e.UnspscCodes).HasColumnType("integer[]");
+            entity.Property(e => e.GsinCodes).HasColumnType("varchar[]");
+            entity.Property(e => e.Certifications).HasColumnType("varchar[]");
+
+            entity.HasOne(e => e.Preferences)
+                .WithOne(p => p.Company)
+                .HasForeignKey<CompanyPreferences>(p => p.CompanyId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<CompanyPreferences>(entity =>
+        {
+            entity.Property(e => e.PreferredProcCats).HasColumnType("varchar[]");
+            entity.Property(e => e.PreferredOrgs).HasColumnType("varchar[]");
+            entity.Property(e => e.PreferredNtTypes).HasColumnType("varchar[]");
+            entity.Property(e => e.PreferredProvinces).HasColumnType("varchar[]");
+            entity.Property(e => e.ExcludeKeywords).HasColumnType("varchar[]");
+        });
+
+        modelBuilder.Entity<CompanyMatch>(entity =>
+        {
+            entity.HasIndex(e => new { e.CompanyId, e.TenderId }).IsUnique();
         });
     }
 }
