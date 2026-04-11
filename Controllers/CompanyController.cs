@@ -84,7 +84,7 @@ public class CompanyController : ControllerBase
         return Ok(prefs);
     }
 
-    // ── Matches (read + status update) ──
+    // ── Matches (read + stats + status update) ──
 
     [HttpGet("{id:int}/matches")]
     [ProducesResponseType(typeof(List<CompanyMatchDto>), StatusCodes.Status200OK)]
@@ -92,6 +92,14 @@ public class CompanyController : ControllerBase
     {
         var matches = await _companyService.GetMatchesAsync(id, status, limit);
         return Ok(matches);
+    }
+
+    [HttpGet("{id:int}/matches/stats")]
+    [ProducesResponseType(typeof(MatchStatsDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetMatchStats(int id)
+    {
+        var stats = await _companyService.GetMatchStatsAsync(id);
+        return Ok(stats);
     }
 
     [HttpPatch("{id:int}/matches/{matchId:int}/status")]

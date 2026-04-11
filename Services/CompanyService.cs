@@ -166,17 +166,39 @@ public class CompanyService
             {
                 Id = m.Id,
                 TenderId = m.TenderId,
+                NoticeId = m.Tender.NoticeId,
                 TenderTitle = m.Tender.Title,
+                ProcurementCategory = m.Tender.ProcurementCategory,
                 BuyingOrganization = m.Tender.BuyingOrganization,
                 ClosingDate = m.Tender.ClosingDate != null
                     ? DateTimeOffset.FromUnixTimeSeconds((long)m.Tender.ClosingDate.Value).UtcDateTime
                     : null,
+                NoticeType = m.Tender.NoticeType,
+                NoticeLink = m.Tender.NoticeLink,
                 MatchScore = m.MatchScore,
                 MatchReason = m.MatchReason,
                 MatchedAt = m.MatchedAt,
                 Status = m.Status,
             })
             .ToListAsync();
+    }
+
+    public async Task<MatchStatsDto> GetMatchStatsAsync(int companyId)
+    {
+        var matches = await _db.CompanyMatches
+            .Where(m => m.CompanyId == companyId)
+            .ToListAsync();
+
+        return new MatchStatsDto
+        {
+            TotalMatches = matches.Count,
+            NewCount = matches.Count(m => m.Status == "new"),
+            ViewedCount = matches.Count(m => m.Status == "viewed"),
+            SavedCount = matches.Count(m => m.Status == "saved"),
+            DismissedCount = matches.Count(m => m.Status == "dismissed"),
+            AverageScore = matches.Count > 0 ? Math.Round(matches.Average(m => m.MatchScore), 1) : 0,
+            HighScoreCount = matches.Count(m => m.MatchScore >= 70),
+        };
     }
 
     // ── Mapping helpers ──

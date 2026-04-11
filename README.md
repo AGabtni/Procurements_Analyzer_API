@@ -7,14 +7,17 @@ ASP.NET Core Web API that serves Canadian procurement tender data scraped by the
 ```mermaid
 graph LR
     subgraph Data Pipeline
-        S[Python Scraper] -->|writes| DB[(PostgreSQL)]
+        S[Python Scraper] -->|writes tenders| DB[(PostgreSQL)]
+        M[Matching Engine] -->|writes matches| DB
     end
     subgraph API Layer
         DB -->|reads| EF[EF Core]
-        EF --> SVC[TenderService]
-        SVC --> CTRL[TendersController]
-        CTRL --> SW[Swagger UI]
-        CTRL --> CLIENT[Client / Dashboard]
+        EF --> TS[TenderService]
+        EF --> CS[CompanyService]
+        TS --> TC[TendersController]
+        CS --> CC[CompanyController]
+        TC & CC --> SW[Swagger UI]
+        TC & CC --> CLIENT[React Dashboard]
     end
 ```
 
@@ -29,17 +32,23 @@ graph LR
 
 ```
 ├── Controllers/
-│   └── TendersController.cs     # API endpoints
+│   ├── TendersController.cs     # Tender search/filter/detail endpoints
+│   └── CompanyController.cs     # Company profile, preferences, matches
 ├── Services/
-│   └── TenderService.cs         # Business logic, queries, mapping
+│   ├── TenderService.cs         # Tender queries and mapping
+│   └── CompanyService.cs        # Profile CRUD, preferences, match queries
 ├── Models/
 │   ├── TenderNotice.cs          # EF model — tender_notice table
 │   ├── TenderHeader.cs          # EF model — tender_header table
-│   └── TenderDocument.cs        # EF model — tender_documents table
+│   ├── TenderDocument.cs        # EF model — tender_documents table
+│   ├── CompanyProfile.cs        # EF model — company_profile table
+│   ├── CompanyPreferences.cs    # EF model — company_preferences table
+│   └── CompanyMatch.cs          # EF model — company_matches table
 ├── DTOs/
-│   └── TenderDtos.cs            # Request/response shapes
+│   ├── TenderDtos.cs            # Tender request/response shapes
+│   └── CompanyDtos.cs           # Company/match request/response shapes
 ├── Data/
-│   └── ProcurementsDbContext.cs  # EF DbContext
+│   └── ProcurementsDbContext.cs  # EF DbContext (6 DbSets)
 ├── Program.cs                   # App startup + DI configuration
 ├── appsettings.json             # Base config
 ├── appsettings.Development.json # Local DB connection (gitignored)
@@ -48,6 +57,8 @@ graph LR
 
 ## API Endpoints
 
+### Tenders
+
 | Method | Route | Description |
 |--------|-------|-------------|
 | `GET` | `/api/tenders` | Search, filter, and paginate tenders |
@@ -55,6 +66,21 @@ graph LR
 | `GET` | `/api/tenders/by-notice/{noticeId}` | Tender detail by notice ID (e.g. `PW-24-01234567`) |
 | `GET` | `/api/tenders/categories` | List all procurement categories |
 | `GET` | `/api/tenders/notice-types` | List all notice types |
+
+### Company Profiles & Matching
+
+| Method | Route | Description |
+|--------|-------|-------------|
+| `GET` | `/api/company` | List all company profiles |
+| `GET` | `/api/company/{id}` | Get profile by ID (includes preferences) |
+| `POST` | `/api/company` | Create profile (+ optional preferences) |
+| `PUT` | `/api/company/{id}` | Update profile fields |
+| `DELETE` | `/api/company/{id}` | Delete profile (cascades prefs + matches) |
+| `GET` | `/api/company/{id}/preferences` | Get matching preferences |
+| `PUT` | `/api/company/{id}/preferences` | Create or update preferences |
+| `GET` | `/api/company/{id}/matches` | List matches (filter: `?status=saved&limit=50`) |
+| `GET` | `/api/company/{id}/matches/stats` | Match stats (counts, avg score, high-score count) |
+| `PATCH` | `/api/company/{id}/matches/{matchId}/status` | Update match status (new/viewed/saved/dismissed) |
 
 ### Search Parameters (`GET /api/tenders`)
 
@@ -165,15 +191,52 @@ erDiagram
         real pub_date
         varchar doc_type
     }
+    company_profile {
+        int id PK
+        varchar company_name
+        varchar industry
+        varchar province
+        text services_description
+        varchar[] keywords
+        integer[] unspsc_codes
+        varchar[] gsin_codes
+        varchar[] certifications
+        varchar company_size
+        timestamp created_at
+        timestamp updated_at
+    }
+    company_preferences {
+        int id PK
+        int company_id FK
+        varchar[] preferred_proc_cats
+        varchar[] preferred_orgs
+        varchar[] preferred_nt_types
+        varchar[] preferred_provinces
+        numeric min_value
+        numeric max_value
+        varchar[] exclude_keywords
+    }
+    company_matches {
+        int id PK
+        int company_id FK
+        int tender_id FK
+        int match_score
+        text match_reason
+        timestamp matched_at
+        varchar status
+    }
     tender_notice ||--o{ tender_documents : "nt_id"
+    company_profile ||--o| company_preferences : "company_id"
+    company_profile ||--o{ company_matches : "company_id"
+    tender_notice ||--o{ company_matches : "tender_id"
 ```
 
 ## Roadmap
 
-- [x] REST API with search/filter/pagination
+- [x] REST API with search/filter/pagination (5 tender endpoints)
 - [x] Swagger UI for interactive testing
-- [ ] Web dashboard (Razor Pages)
-- [ ] CSV/Excel export endpoint
-- [ ] Lead matching & scoring endpoints
+- [x] Company profile CRUD (5 endpoints)
+- [x] Matching preferences management (2 endpoints)
+- [x] Match results + stats + status management (3 endpoints)
 - [ ] Authentication & rate limiting
 - [ ] Docker containerization

@@ -37,13 +37,28 @@ public class CompanyMatchDto
 {
     public int Id { get; set; }
     public int TenderId { get; set; }
+    public string? NoticeId { get; set; }
     public string? TenderTitle { get; set; }
+    public string? ProcurementCategory { get; set; }
     public string? BuyingOrganization { get; set; }
     public DateTime? ClosingDate { get; set; }
+    public string? NoticeType { get; set; }
+    public string? NoticeLink { get; set; }
     public int MatchScore { get; set; }
     public string? MatchReason { get; set; }
     public DateTime MatchedAt { get; set; }
     public string Status { get; set; } = "new";
+}
+
+public class MatchStatsDto
+{
+    public int TotalMatches { get; set; }
+    public int NewCount { get; set; }
+    public int ViewedCount { get; set; }
+    public int SavedCount { get; set; }
+    public int DismissedCount { get; set; }
+    public double AverageScore { get; set; }
+    public int HighScoreCount { get; set; }
 }
 
 // ── Request DTOs ──
