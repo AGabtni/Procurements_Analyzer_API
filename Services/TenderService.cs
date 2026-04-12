@@ -133,6 +133,10 @@ public class TenderService
             NoticeLink = tender.NoticeLink,
             ExternalLink = tender.ExternalLink,
             HasDocuments = tender.HasDocuments,
+            Description = tender.Description,
+            ContactName = tender.ContactName,
+            ContactEmail = tender.ContactEmail,
+            ContactPhone = tender.ContactPhone,
             Documents = documents,
         };
     }

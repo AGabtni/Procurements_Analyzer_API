@@ -31,6 +31,10 @@ public class TenderDetailDto
     public string? NoticeLink { get; set; }
     public string? ExternalLink { get; set; }
     public bool? HasDocuments { get; set; }
+    public string? Description { get; set; }
+    public string? ContactName { get; set; }
+    public string? ContactEmail { get; set; }
+    public string? ContactPhone { get; set; }
     public List<DocumentDto> Documents { get; set; } = [];
 }
 

@@ -51,4 +51,16 @@ public class TenderNotice
 
     [Column("has_documents")]
     public bool? HasDocuments { get; set; }
+
+    [Column("description")]
+    public string? Description { get; set; }
+
+    [Column("contact_name")]
+    public string? ContactName { get; set; }
+
+    [Column("contact_email")]
+    public string? ContactEmail { get; set; }
+
+    [Column("contact_phone")]
+    public string? ContactPhone { get; set; }
 }
