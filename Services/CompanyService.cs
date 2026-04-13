@@ -201,6 +201,58 @@ public class CompanyService
         };
     }
 
+    // ── Matching trigger ──
+
+    public async Task<(bool started, int? retryAfterSeconds)> TriggerMatchAsync(int companyId)
+    {
+        var profile = await _db.CompanyProfiles.FindAsync(companyId);
+        if (profile is null) return (false, null);
+
+        // Check 24h cooldown
+        if (profile.LastMatchedAt.HasValue)
+        {
+            var cooldownEnd = profile.LastMatchedAt.Value.AddHours(24);
+            if (DateTime.UtcNow < cooldownEnd)
+            {
+                var remaining = (int)(cooldownEnd - DateTime.UtcNow).TotalSeconds;
+                return (false, remaining);
+            }
+        }
+
+        // Reject if already pending or running
+        if (profile.MatchingStatus is "pending_rematch" or "pending_reset" or "running")
+            return (false, null);
+
+        profile.MatchingStatus = "pending_rematch";
+        await _db.SaveChangesAsync();
+        return (true, null);
+    }
+
+    public async Task<(bool started, int? retryAfterSeconds)> TriggerResetAsync(int companyId)
+    {
+        var profile = await _db.CompanyProfiles.FindAsync(companyId);
+        if (profile is null) return (false, null);
+
+        // Check 24h cooldown
+        if (profile.LastMatchedAt.HasValue)
+        {
+            var cooldownEnd = profile.LastMatchedAt.Value.AddHours(24);
+            if (DateTime.UtcNow < cooldownEnd)
+            {
+                var remaining = (int)(cooldownEnd - DateTime.UtcNow).TotalSeconds;
+                return (false, remaining);
+            }
+        }
+
+        // Reject if already pending or running
+        if (profile.MatchingStatus is "pending_rematch" or "pending_reset" or "running")
+            return (false, null);
+
+        profile.MatchingStatus = "pending_reset";
+        await _db.SaveChangesAsync();
+        return (true, null);
+    }
+
     // ── Mapping helpers ──
 
     private static CompanyProfileDto MapToDto(CompanyProfile p) => new()
@@ -217,6 +269,9 @@ public class CompanyService
         CompanySize = p.CompanySize,
         CreatedAt = p.CreatedAt,
         UpdatedAt = p.UpdatedAt,
+        LastMatchedAt = p.LastMatchedAt,
+        MatchingStatus = p.MatchingStatus,
+        MatchingStartedAt = p.MatchingStartedAt,
         Preferences = p.Preferences is null ? null : MapPrefsToDto(p.Preferences),
     };
 

@@ -111,4 +111,59 @@ public class CompanyController : ControllerBase
         if (!updated) return NotFound();
         return NoContent();
     }
+
+    // ── Matching trigger ──
+
+    [HttpPost("{id:int}/match")]
+    [ProducesResponseType(StatusCodes.Status202Accepted)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> TriggerMatch(int id)
+    {
+        var (started, retryAfter) = await _companyService.TriggerMatchAsync(id);
+
+        if (retryAfter.HasValue)
+        {
+            Response.Headers.RetryAfter = retryAfter.Value.ToString();
+            return StatusCode(StatusCodes.Status429TooManyRequests,
+                new { message = "Cooldown active", retryAfterSeconds = retryAfter.Value });
+        }
+
+        if (!started)
+        {
+            // Either not found or already pending/running
+            var profile = await _companyService.GetProfileByIdAsync(id);
+            if (profile is null) return NotFound();
+            return Conflict(new { message = "Matching is already in progress or pending" });
+        }
+
+        return Accepted(new { message = "Matching job queued" });
+    }
+
+    [HttpPost("{id:int}/match/reset")]
+    [ProducesResponseType(StatusCodes.Status202Accepted)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> TriggerReset(int id)
+    {
+        var (started, retryAfter) = await _companyService.TriggerResetAsync(id);
+
+        if (retryAfter.HasValue)
+        {
+            Response.Headers.RetryAfter = retryAfter.Value.ToString();
+            return StatusCode(StatusCodes.Status429TooManyRequests,
+                new { message = "Cooldown active", retryAfterSeconds = retryAfter.Value });
+        }
+
+        if (!started)
+        {
+            var profile = await _companyService.GetProfileByIdAsync(id);
+            if (profile is null) return NotFound();
+            return Conflict(new { message = "Matching is already in progress or pending" });
+        }
+
+        return Accepted(new { message = "Reset + matching job queued" });
+    }
 }

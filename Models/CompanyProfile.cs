@@ -44,6 +44,15 @@ public class CompanyProfile
     [Column("updated_at")]
     public DateTime UpdatedAt { get; set; }
 
+    [Column("last_matched_at")]
+    public DateTime? LastMatchedAt { get; set; }
+
+    [Column("matching_status")]
+    public string MatchingStatus { get; set; } = "idle";
+
+    [Column("matching_started_at")]
+    public DateTime? MatchingStartedAt { get; set; }
+
     public CompanyPreferences? Preferences { get; set; }
     public List<CompanyMatch> Matches { get; set; } = [];
 }

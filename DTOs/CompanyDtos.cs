@@ -18,6 +18,9 @@ public class CompanyProfileDto
     public string? CompanySize { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
+    public DateTime? LastMatchedAt { get; set; }
+    public string MatchingStatus { get; set; } = "idle";
+    public DateTime? MatchingStartedAt { get; set; }
     public CompanyPreferencesDto? Preferences { get; set; }
 }
 
