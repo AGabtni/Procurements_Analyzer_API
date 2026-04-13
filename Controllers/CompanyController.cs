@@ -125,7 +125,7 @@ public class CompanyController : ControllerBase
 
         if (retryAfter.HasValue)
         {
-            Response.Headers.RetryAfter = retryAfter.Value.ToString();
+            Response.Headers.Append("Retry-After", retryAfter.Value.ToString());
             return StatusCode(StatusCodes.Status429TooManyRequests,
                 new { message = "Cooldown active", retryAfterSeconds = retryAfter.Value });
         }
@@ -152,7 +152,7 @@ public class CompanyController : ControllerBase
 
         if (retryAfter.HasValue)
         {
-            Response.Headers.RetryAfter = retryAfter.Value.ToString();
+            Response.Headers.Append("Retry-After", retryAfter.Value.ToString());
             return StatusCode(StatusCodes.Status429TooManyRequests,
                 new { message = "Cooldown active", retryAfterSeconds = retryAfter.Value });
         }
