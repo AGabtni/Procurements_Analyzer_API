@@ -21,13 +21,13 @@ public class CompanyProfileDto
     public DateTime? LastMatchedAt { get; set; }
     public string MatchingStatus { get; set; } = "idle";
     public DateTime? MatchingStartedAt { get; set; }
+    public string[] CommodityTypes { get; set; } = [];
     public CompanyPreferencesDto? Preferences { get; set; }
 }
 
 public class CompanyPreferencesDto
 {
     public int Id { get; set; }
-    public string[]? PreferredProcCats { get; set; }
     public string[]? PreferredOrgs { get; set; }
     public string[]? PreferredNtTypes { get; set; }
     public string[]? PreferredProvinces { get; set; }
@@ -88,6 +88,7 @@ public class CreateCompanyProfileRequest
     [MaxLength(50)]
     public string? CompanySize { get; set; }
 
+    public string[]? CommodityTypes { get; set; }
     public CompanyPreferencesRequest? Preferences { get; set; }
 }
 
@@ -112,11 +113,12 @@ public class UpdateCompanyProfileRequest
 
     [MaxLength(50)]
     public string? CompanySize { get; set; }
+
+    public string[]? CommodityTypes { get; set; }
 }
 
 public class CompanyPreferencesRequest
 {
-    public string[]? PreferredProcCats { get; set; }
     public string[]? PreferredOrgs { get; set; }
     public string[]? PreferredNtTypes { get; set; }
     public string[]? PreferredProvinces { get; set; }

@@ -13,9 +13,6 @@ public class CompanyPreferences
     [Column("company_id")]
     public int CompanyId { get; set; }
 
-    [Column("preferred_proc_cats")]
-    public string[]? PreferredProcCats { get; set; }
-
     [Column("preferred_orgs")]
     public string[]? PreferredOrgs { get; set; }
 

@@ -16,6 +16,7 @@ public class ProcurementsDbContext : DbContext
     public DbSet<CompanyProfile> CompanyProfiles { get; set; }
     public DbSet<CompanyPreferences> CompanyPreferences { get; set; }
     public DbSet<CompanyMatch> CompanyMatches { get; set; }
+    public DbSet<CompanyCommodityType> CompanyCommodityTypes { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -41,7 +42,6 @@ public class ProcurementsDbContext : DbContext
 
         modelBuilder.Entity<CompanyPreferences>(entity =>
         {
-            entity.Property(e => e.PreferredProcCats).HasColumnType("varchar[]");
             entity.Property(e => e.PreferredOrgs).HasColumnType("varchar[]");
             entity.Property(e => e.PreferredNtTypes).HasColumnType("varchar[]");
             entity.Property(e => e.PreferredProvinces).HasColumnType("varchar[]");

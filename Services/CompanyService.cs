@@ -15,19 +15,20 @@ public class CompanyService
     }
 
     // ── Profile CRUD ──
-
     public async Task<List<CompanyProfileDto>> GetAllProfilesAsync()
     {
-        return await _db.CompanyProfiles
-            .Include(p => p.Preferences)
+        return await _db
+            .CompanyProfiles.Include(p => p.Preferences)
+            .Include(p => p.CommodityTypes)
             .Select(p => MapToDto(p))
             .ToListAsync();
     }
 
     public async Task<CompanyProfileDto?> GetProfileByIdAsync(int id)
     {
-        var profile = await _db.CompanyProfiles
-            .Include(p => p.Preferences)
+        var profile = await _db
+            .CompanyProfiles.Include(p => p.Preferences)
+            .Include(p => p.CommodityTypes)
             .FirstOrDefaultAsync(p => p.Id == id);
 
         return profile is null ? null : MapToDto(profile);
@@ -53,32 +54,53 @@ public class CompanyService
         _db.CompanyProfiles.Add(profile);
         await _db.SaveChangesAsync();
 
+        if (request.CommodityTypes is { Length: > 0 })
+            await SyncCommodityTypesAsync(profile.Id, request.CommodityTypes);
+
         if (request.Preferences is not null)
         {
             await UpsertPreferencesAsync(profile.Id, request.Preferences);
             await _db.Entry(profile).Reference(p => p.Preferences).LoadAsync();
         }
 
+        await _db.Entry(profile).Collection(p => p.CommodityTypes).LoadAsync();
         return MapToDto(profile);
     }
 
-    public async Task<CompanyProfileDto?> UpdateProfileAsync(int id, UpdateCompanyProfileRequest request)
+    public async Task<CompanyProfileDto?> UpdateProfileAsync(
+        int id,
+        UpdateCompanyProfileRequest request
+    )
     {
-        var profile = await _db.CompanyProfiles
-            .Include(p => p.Preferences)
+        var profile = await _db
+            .CompanyProfiles.Include(p => p.Preferences)
+            .Include(p => p.CommodityTypes)
             .FirstOrDefaultAsync(p => p.Id == id);
 
-        if (profile is null) return null;
+        if (profile is null)
+            return null;
 
-        if (request.CompanyName is not null) profile.CompanyName = request.CompanyName;
-        if (request.Industry is not null) profile.Industry = request.Industry;
-        if (request.Province is not null) profile.Province = request.Province;
-        if (request.ServicesDescription is not null) profile.ServicesDescription = request.ServicesDescription;
-        if (request.Keywords is not null) profile.Keywords = request.Keywords;
-        if (request.UnspscCodes is not null) profile.UnspscCodes = request.UnspscCodes;
-        if (request.GsinCodes is not null) profile.GsinCodes = request.GsinCodes;
-        if (request.Certifications is not null) profile.Certifications = request.Certifications;
-        if (request.CompanySize is not null) profile.CompanySize = request.CompanySize;
+        if (request.CompanyName is not null)
+            profile.CompanyName = request.CompanyName;
+        if (request.Industry is not null)
+            profile.Industry = request.Industry;
+        if (request.Province is not null)
+            profile.Province = request.Province;
+        if (request.ServicesDescription is not null)
+            profile.ServicesDescription = request.ServicesDescription;
+        if (request.Keywords is not null)
+            profile.Keywords = request.Keywords;
+        if (request.UnspscCodes is not null)
+            profile.UnspscCodes = request.UnspscCodes;
+        if (request.GsinCodes is not null)
+            profile.GsinCodes = request.GsinCodes;
+        if (request.Certifications is not null)
+            profile.Certifications = request.Certifications;
+        if (request.CompanySize is not null)
+            profile.CompanySize = request.CompanySize;
+
+        if (request.CommodityTypes is not null)
+            await SyncCommodityTypesAsync(id, request.CommodityTypes);
 
         profile.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
@@ -89,7 +111,8 @@ public class CompanyService
     public async Task<bool> DeleteProfileAsync(int id)
     {
         var profile = await _db.CompanyProfiles.FindAsync(id);
-        if (profile is null) return false;
+        if (profile is null)
+            return false;
 
         _db.CompanyProfiles.Remove(profile);
         await _db.SaveChangesAsync();
@@ -100,28 +123,24 @@ public class CompanyService
 
     public async Task<CompanyPreferencesDto?> GetPreferencesAsync(int companyId)
     {
-        var prefs = await _db.CompanyPreferences
-            .FirstOrDefaultAsync(p => p.CompanyId == companyId);
+        var prefs = await _db.CompanyPreferences.FirstOrDefaultAsync(p => p.CompanyId == companyId);
 
         return prefs is null ? null : MapPrefsToDto(prefs);
     }
 
-    public async Task<CompanyPreferencesDto> UpsertPreferencesAsync(int companyId, CompanyPreferencesRequest request)
+    public async Task<CompanyPreferencesDto> UpsertPreferencesAsync(
+        int companyId,
+        CompanyPreferencesRequest request
+    )
     {
-        var prefs = await _db.CompanyPreferences
-            .FirstOrDefaultAsync(p => p.CompanyId == companyId);
+        var prefs = await _db.CompanyPreferences.FirstOrDefaultAsync(p => p.CompanyId == companyId);
 
         if (prefs is null)
         {
-            prefs = new CompanyPreferences
-            {
-                CompanyId = companyId,
-                CreatedAt = DateTime.UtcNow,
-            };
+            prefs = new CompanyPreferences { CompanyId = companyId, CreatedAt = DateTime.UtcNow };
             _db.CompanyPreferences.Add(prefs);
         }
 
-        prefs.PreferredProcCats = request.PreferredProcCats;
         prefs.PreferredOrgs = request.PreferredOrgs;
         prefs.PreferredNtTypes = request.PreferredNtTypes;
         prefs.PreferredProvinces = request.PreferredProvinces;
@@ -135,13 +154,14 @@ public class CompanyService
     }
 
     // ── Match status update ──
-
     public async Task<bool> UpdateMatchStatusAsync(int matchId, int companyId, string status)
     {
-        var match = await _db.CompanyMatches
-            .FirstOrDefaultAsync(m => m.Id == matchId && m.CompanyId == companyId);
+        var match = await _db.CompanyMatches.FirstOrDefaultAsync(m =>
+            m.Id == matchId && m.CompanyId == companyId
+        );
 
-        if (match is null) return false;
+        if (match is null)
+            return false;
 
         match.Status = status;
         await _db.SaveChangesAsync();
@@ -149,12 +169,13 @@ public class CompanyService
     }
 
     // ── Matches read (for a company) ──
-
-    public async Task<List<CompanyMatchDto>> GetMatchesAsync(int companyId, string? status = null, int limit = 50)
+    public async Task<List<CompanyMatchDto>> GetMatchesAsync(
+        int companyId,
+        string? status = null,
+        int limit = 50
+    )
     {
-        var query = _db.CompanyMatches
-            .Include(m => m.Tender)
-            .Where(m => m.CompanyId == companyId);
+        var query = _db.CompanyMatches.Include(m => m.Tender).Where(m => m.CompanyId == companyId);
 
         if (!string.IsNullOrWhiteSpace(status))
             query = query.Where(m => m.Status == status);
@@ -170,9 +191,12 @@ public class CompanyService
                 TenderTitle = m.Tender.Title,
                 ProcurementCategory = m.Tender.ProcurementCategory,
                 BuyingOrganization = m.Tender.BuyingOrganization,
-                ClosingDate = m.Tender.ClosingDate != null
-                    ? DateTimeOffset.FromUnixTimeSeconds((long)m.Tender.ClosingDate.Value).UtcDateTime
-                    : null,
+                ClosingDate =
+                    m.Tender.ClosingDate != null
+                        ? DateTimeOffset
+                            .FromUnixTimeSeconds((long)m.Tender.ClosingDate.Value)
+                            .UtcDateTime
+                        : null,
                 NoticeType = m.Tender.NoticeType,
                 NoticeLink = m.Tender.NoticeLink,
                 MatchScore = m.MatchScore,
@@ -185,9 +209,7 @@ public class CompanyService
 
     public async Task<MatchStatsDto> GetMatchStatsAsync(int companyId)
     {
-        var matches = await _db.CompanyMatches
-            .Where(m => m.CompanyId == companyId)
-            .ToListAsync();
+        var matches = await _db.CompanyMatches.Where(m => m.CompanyId == companyId).ToListAsync();
 
         return new MatchStatsDto
         {
@@ -196,7 +218,8 @@ public class CompanyService
             ViewedCount = matches.Count(m => m.Status == "viewed"),
             SavedCount = matches.Count(m => m.Status == "saved"),
             DismissedCount = matches.Count(m => m.Status == "dismissed"),
-            AverageScore = matches.Count > 0 ? Math.Round(matches.Average(m => m.MatchScore), 1) : 0,
+            AverageScore =
+                matches.Count > 0 ? Math.Round(matches.Average(m => m.MatchScore), 1) : 0,
             HighScoreCount = matches.Count(m => m.MatchScore >= 70),
         };
     }
@@ -206,7 +229,8 @@ public class CompanyService
     public async Task<(bool started, int? retryAfterSeconds)> TriggerMatchAsync(int companyId)
     {
         var profile = await _db.CompanyProfiles.FindAsync(companyId);
-        if (profile is null) return (false, null);
+        if (profile is null)
+            return (false, null);
 
         // Check 24h cooldown
         if (profile.LastMatchedAt.HasValue)
@@ -231,7 +255,8 @@ public class CompanyService
     public async Task<(bool started, int? retryAfterSeconds)> TriggerResetAsync(int companyId)
     {
         var profile = await _db.CompanyProfiles.FindAsync(companyId);
-        if (profile is null) return (false, null);
+        if (profile is null)
+            return (false, null);
 
         // Check 24h cooldown
         if (profile.LastMatchedAt.HasValue)
@@ -253,37 +278,58 @@ public class CompanyService
         return (true, null);
     }
 
+    // ── Commodity types sync ──
+    private async Task SyncCommodityTypesAsync(int companyId, string[] codes)
+    {
+        var existing = await _db
+            .CompanyCommodityTypes.Where(c => c.CompanyId == companyId)
+            .ToListAsync();
+
+        _db.CompanyCommodityTypes.RemoveRange(existing);
+
+        foreach (var code in codes.Distinct())
+        {
+            _db.CompanyCommodityTypes.Add(
+                new CompanyCommodityType { CompanyId = companyId, CommodityCode = code }
+            );
+        }
+
+        await _db.SaveChangesAsync();
+    }
+
     // ── Mapping helpers ──
 
-    private static CompanyProfileDto MapToDto(CompanyProfile p) => new()
-    {
-        Id = p.Id,
-        CompanyName = p.CompanyName,
-        Industry = p.Industry,
-        Province = p.Province,
-        ServicesDescription = p.ServicesDescription,
-        Keywords = p.Keywords,
-        UnspscCodes = p.UnspscCodes,
-        GsinCodes = p.GsinCodes,
-        Certifications = p.Certifications,
-        CompanySize = p.CompanySize,
-        CreatedAt = p.CreatedAt,
-        UpdatedAt = p.UpdatedAt,
-        LastMatchedAt = p.LastMatchedAt,
-        MatchingStatus = p.MatchingStatus,
-        MatchingStartedAt = p.MatchingStartedAt,
-        Preferences = p.Preferences is null ? null : MapPrefsToDto(p.Preferences),
-    };
+    private static CompanyProfileDto MapToDto(CompanyProfile p) =>
+        new()
+        {
+            Id = p.Id,
+            CompanyName = p.CompanyName,
+            Industry = p.Industry,
+            Province = p.Province,
+            ServicesDescription = p.ServicesDescription,
+            Keywords = p.Keywords,
+            UnspscCodes = p.UnspscCodes,
+            GsinCodes = p.GsinCodes,
+            Certifications = p.Certifications,
+            CompanySize = p.CompanySize,
+            CreatedAt = p.CreatedAt,
+            UpdatedAt = p.UpdatedAt,
+            LastMatchedAt = p.LastMatchedAt,
+            MatchingStatus = p.MatchingStatus,
+            MatchingStartedAt = p.MatchingStartedAt,
+            CommodityTypes = p.CommodityTypes.Select(c => c.CommodityCode).ToArray(),
+            Preferences = p.Preferences is null ? null : MapPrefsToDto(p.Preferences),
+        };
 
-    private static CompanyPreferencesDto MapPrefsToDto(CompanyPreferences p) => new()
-    {
-        Id = p.Id,
-        PreferredProcCats = p.PreferredProcCats,
-        PreferredOrgs = p.PreferredOrgs,
-        PreferredNtTypes = p.PreferredNtTypes,
-        PreferredProvinces = p.PreferredProvinces,
-        MinValue = p.MinValue,
-        MaxValue = p.MaxValue,
-        ExcludeKeywords = p.ExcludeKeywords,
-    };
+    private static CompanyPreferencesDto MapPrefsToDto(CompanyPreferences p) =>
+        new()
+        {
+            Id = p.Id,
+            PreferredOrgs = p.PreferredOrgs,
+            PreferredNtTypes = p.PreferredNtTypes,
+            PreferredProvinces = p.PreferredProvinces,
+            MinValue = p.MinValue,
+            MaxValue = p.MaxValue,
+            ExcludeKeywords = p.ExcludeKeywords,
+        };
 }
