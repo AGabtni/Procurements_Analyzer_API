@@ -54,6 +54,9 @@ public class CompanyProfile
     public DateTime? MatchingStartedAt { get; set; }
 
     public CompanyPreferences? Preferences { get; set; }
-    public List<CompanyCommodityType> CommodityTypes { get; set; } = [];
+
+    [Column("commodity_types")]
+    public string[]? CommodityTypes { get; set; }
+
     public List<CompanyMatch> Matches { get; set; } = [];
 }

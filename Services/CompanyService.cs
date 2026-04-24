@@ -19,7 +19,6 @@ public class CompanyService
     {
         return await _db
             .CompanyProfiles.Include(p => p.Preferences)
-            .Include(p => p.CommodityTypes)
             .Select(p => MapToDto(p))
             .ToListAsync();
     }
@@ -28,7 +27,6 @@ public class CompanyService
     {
         var profile = await _db
             .CompanyProfiles.Include(p => p.Preferences)
-            .Include(p => p.CommodityTypes)
             .FirstOrDefaultAsync(p => p.Id == id);
 
         return profile is null ? null : MapToDto(profile);
@@ -47,6 +45,7 @@ public class CompanyService
             GsinCodes = request.GsinCodes,
             Certifications = request.Certifications,
             CompanySize = request.CompanySize,
+            CommodityTypes = request.CommodityTypes,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow,
         };
@@ -54,16 +53,12 @@ public class CompanyService
         _db.CompanyProfiles.Add(profile);
         await _db.SaveChangesAsync();
 
-        if (request.CommodityTypes is { Length: > 0 })
-            await SyncCommodityTypesAsync(profile.Id, request.CommodityTypes);
-
         if (request.Preferences is not null)
         {
             await UpsertPreferencesAsync(profile.Id, request.Preferences);
             await _db.Entry(profile).Reference(p => p.Preferences).LoadAsync();
         }
 
-        await _db.Entry(profile).Collection(p => p.CommodityTypes).LoadAsync();
         return MapToDto(profile);
     }
 
@@ -74,7 +69,6 @@ public class CompanyService
     {
         var profile = await _db
             .CompanyProfiles.Include(p => p.Preferences)
-            .Include(p => p.CommodityTypes)
             .FirstOrDefaultAsync(p => p.Id == id);
 
         if (profile is null)
@@ -100,7 +94,7 @@ public class CompanyService
             profile.CompanySize = request.CompanySize;
 
         if (request.CommodityTypes is not null)
-            await SyncCommodityTypesAsync(id, request.CommodityTypes);
+            profile.CommodityTypes = request.CommodityTypes;
 
         profile.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
@@ -278,25 +272,6 @@ public class CompanyService
         return (true, null);
     }
 
-    // ── Commodity types sync ──
-    private async Task SyncCommodityTypesAsync(int companyId, string[] codes)
-    {
-        var existing = await _db
-            .CompanyCommodityTypes.Where(c => c.CompanyId == companyId)
-            .ToListAsync();
-
-        _db.CompanyCommodityTypes.RemoveRange(existing);
-
-        foreach (var code in codes.Distinct())
-        {
-            _db.CompanyCommodityTypes.Add(
-                new CompanyCommodityType { CompanyId = companyId, CommodityCode = code }
-            );
-        }
-
-        await _db.SaveChangesAsync();
-    }
-
     // ── Mapping helpers ──
 
     private static CompanyProfileDto MapToDto(CompanyProfile p) =>
@@ -317,7 +292,7 @@ public class CompanyService
             LastMatchedAt = p.LastMatchedAt,
             MatchingStatus = p.MatchingStatus,
             MatchingStartedAt = p.MatchingStartedAt,
-            CommodityTypes = p.CommodityTypes.Select(c => c.CommodityCode).ToArray(),
+            CommodityTypes = p.CommodityTypes ?? [],
             Preferences = p.Preferences is null ? null : MapPrefsToDto(p.Preferences),
         };
 

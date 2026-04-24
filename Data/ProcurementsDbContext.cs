@@ -16,7 +16,6 @@ public class ProcurementsDbContext : DbContext
     public DbSet<CompanyProfile> CompanyProfiles { get; set; }
     public DbSet<CompanyPreferences> CompanyPreferences { get; set; }
     public DbSet<CompanyMatch> CompanyMatches { get; set; }
-    public DbSet<CompanyCommodityType> CompanyCommodityTypes { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -33,6 +32,7 @@ public class ProcurementsDbContext : DbContext
             entity.Property(e => e.UnspscCodes).HasColumnType("integer[]");
             entity.Property(e => e.GsinCodes).HasColumnType("varchar[]");
             entity.Property(e => e.Certifications).HasColumnType("varchar[]");
+            entity.Property(e => e.CommodityTypes).HasColumnType("varchar[]");
 
             entity.HasOne(e => e.Preferences)
                 .WithOne(p => p.Company)
