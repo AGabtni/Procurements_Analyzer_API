@@ -63,4 +63,10 @@ public class TenderNotice
 
     [Column("contact_phone")]
     public string? ContactPhone { get; set; }
+
+    [Column("rg_dlvry")]
+    public string? RegionOfDelivery { get; set; }
+
+    [Column("rg_opp")]
+    public string? RegionOfOpportunity { get; set; }
 }

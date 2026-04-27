@@ -137,6 +137,8 @@ public class TenderService
             ContactName = tender.ContactName,
             ContactEmail = tender.ContactEmail,
             ContactPhone = tender.ContactPhone,
+            RegionOfDelivery = tender.RegionOfDelivery,
+            RegionOfOpportunity = tender.RegionOfOpportunity,
             Documents = documents,
         };
     }

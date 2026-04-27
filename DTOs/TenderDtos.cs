@@ -35,6 +35,8 @@ public class TenderDetailDto
     public string? ContactName { get; set; }
     public string? ContactEmail { get; set; }
     public string? ContactPhone { get; set; }
+    public string? RegionOfDelivery { get; set; }
+    public string? RegionOfOpportunity { get; set; }
     public List<DocumentDto> Documents { get; set; } = [];
 }
 
