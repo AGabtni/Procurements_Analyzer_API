@@ -1,6 +1,6 @@
 # ProcurePortal API
 
-ASP.NET Core Web API that serves Canadian procurement tender data scraped by the [ProcurePortal Scraper](https://github.com/YOUR_USERNAME/Procurements_Scrapper). Provides search, filtering, pagination, and tender detail endpoints over a shared PostgreSQL database.
+ASP.NET Core Web API that serves Canadian procurement tender data scraped by the [ProcurePortal Scraper](https://github.com/AGabtni/Procurements_Scrapper). Provides search, filtering, pagination, and tender detail endpoints over a shared PostgreSQL database.
 
 ## Architecture
 
