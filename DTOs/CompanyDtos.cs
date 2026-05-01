@@ -22,6 +22,7 @@ public class CompanyProfileDto
     public string MatchingStatus { get; set; } = "idle";
     public DateTime? MatchingStartedAt { get; set; }
     public string[] CommodityTypes { get; set; } = [];
+    public string[]? AutoKeywords { get; set; }
     public CompanyPreferencesDto? Preferences { get; set; }
 }
 

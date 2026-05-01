@@ -81,7 +81,10 @@ public class CompanyService
         if (request.Province is not null)
             profile.Province = request.Province;
         if (request.ServicesDescription is not null)
+        {
             profile.ServicesDescription = request.ServicesDescription;
+            profile.AutoKeywords = null; // Force re-extraction on next match
+        }
         if (request.Keywords is not null)
             profile.Keywords = request.Keywords;
         if (request.UnspscCodes is not null)
@@ -293,6 +296,7 @@ public class CompanyService
             MatchingStatus = p.MatchingStatus,
             MatchingStartedAt = p.MatchingStartedAt,
             CommodityTypes = p.CommodityTypes ?? [],
+            AutoKeywords = p.AutoKeywords,
             Preferences = p.Preferences is null ? null : MapPrefsToDto(p.Preferences),
         };
 

@@ -238,5 +238,6 @@ erDiagram
 - [x] Company profile CRUD (5 endpoints)
 - [x] Matching preferences management (2 endpoints)
 - [x] Match results + stats + status management (3 endpoints)
+- [x] Region of delivery/opportunity in tender detail
 - [ ] Authentication & rate limiting
 - [ ] Docker containerization

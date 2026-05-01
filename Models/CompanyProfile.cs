@@ -48,7 +48,7 @@ public class CompanyProfile
     public DateTime? LastMatchedAt { get; set; }
 
     [Column("matching_status")]
-    public string MatchingStatus { get; set; } = "idle";
+    public string? MatchingStatus { get; set; }
 
     [Column("matching_started_at")]
     public DateTime? MatchingStartedAt { get; set; }
@@ -57,6 +57,9 @@ public class CompanyProfile
 
     [Column("commodity_types")]
     public string[]? CommodityTypes { get; set; }
+
+    [Column("auto_keywords")]
+    public string[]? AutoKeywords { get; set; }
 
     public List<CompanyMatch> Matches { get; set; } = [];
 }
