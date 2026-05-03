@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ProcurePortal.API.DTOs;
 using ProcurePortal.API.Services;
@@ -6,6 +7,7 @@ namespace ProcurePortal.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
 public class CompanyController : ControllerBase
 {
     private readonly CompanyService _companyService;

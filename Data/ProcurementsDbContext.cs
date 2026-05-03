@@ -16,6 +16,7 @@ public class ProcurementsDbContext : DbContext
     public DbSet<CompanyProfile> CompanyProfiles { get; set; }
     public DbSet<CompanyPreferences> CompanyPreferences { get; set; }
     public DbSet<CompanyMatch> CompanyMatches { get; set; }
+    public DbSet<AppUser> Users { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -51,6 +52,11 @@ public class ProcurementsDbContext : DbContext
         modelBuilder.Entity<CompanyMatch>(entity =>
         {
             entity.HasIndex(e => new { e.CompanyId, e.TenderId }).IsUnique();
+        });
+
+        modelBuilder.Entity<AppUser>(entity =>
+        {
+            entity.HasIndex(e => e.Email).IsUnique();
         });
     }
 }
