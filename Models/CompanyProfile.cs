@@ -61,5 +61,9 @@ public class CompanyProfile
     [Column("auto_keywords")]
     public string[]? AutoKeywords { get; set; }
 
+    [Column("user_id")]
+    public int? UserId { get; set; }
+    public AppUser? User { get; set; }
+
     public List<CompanyMatch> Matches { get; set; } = [];
 }

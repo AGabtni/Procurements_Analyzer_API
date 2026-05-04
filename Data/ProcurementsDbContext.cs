@@ -57,6 +57,10 @@ public class ProcurementsDbContext : DbContext
         modelBuilder.Entity<AppUser>(entity =>
         {
             entity.HasIndex(e => e.Email).IsUnique();
+
+            entity.HasOne(e => e.CompanyProfile)
+                .WithOne(p => p.User)
+                .HasForeignKey<CompanyProfile>(p => p.UserId);
         });
     }
 }

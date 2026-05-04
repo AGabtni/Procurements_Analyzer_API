@@ -7,6 +7,9 @@ namespace ProcurePortal.API.DTOs;
 public class CompanyProfileDto
 {
     public int Id { get; set; }
+    public int? UserId { get; set; }
+    public string? OwnerName { get; set; }
+    public string? OwnerEmail { get; set; }
     public string CompanyName { get; set; } = string.Empty;
     public string? Industry { get; set; }
     public string? Province { get; set; }

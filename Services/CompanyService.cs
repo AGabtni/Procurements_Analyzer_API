@@ -18,7 +18,7 @@ public class CompanyService
     public async Task<List<CompanyProfileDto>> GetAllProfilesAsync()
     {
         return await _db
-            .CompanyProfiles.Include(p => p.Preferences)
+            .CompanyProfiles.Include(p => p.Preferences).Include(p => p.User)
             .Select(p => MapToDto(p))
             .ToListAsync();
     }
@@ -26,13 +26,22 @@ public class CompanyService
     public async Task<CompanyProfileDto?> GetProfileByIdAsync(int id)
     {
         var profile = await _db
-            .CompanyProfiles.Include(p => p.Preferences)
+            .CompanyProfiles.Include(p => p.Preferences).Include(p => p.User)
             .FirstOrDefaultAsync(p => p.Id == id);
 
         return profile is null ? null : MapToDto(profile);
     }
 
-    public async Task<CompanyProfileDto> CreateProfileAsync(CreateCompanyProfileRequest request)
+    public async Task<CompanyProfileDto?> GetProfileByUserIdAsync(int userId)
+    {
+        var profile = await _db
+            .CompanyProfiles.Include(p => p.Preferences).Include(p => p.User)
+            .FirstOrDefaultAsync(p => p.UserId == userId);
+
+        return profile is null ? null : MapToDto(profile);
+    }
+
+    public async Task<CompanyProfileDto> CreateProfileAsync(CreateCompanyProfileRequest request, int? userId = null)
     {
         var profile = new CompanyProfile
         {
@@ -46,6 +55,7 @@ public class CompanyService
             Certifications = request.Certifications,
             CompanySize = request.CompanySize,
             CommodityTypes = request.CommodityTypes,
+            UserId = userId,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow,
         };
@@ -223,14 +233,14 @@ public class CompanyService
 
     // ── Matching trigger ──
 
-    public async Task<(bool started, int? retryAfterSeconds)> TriggerMatchAsync(int companyId)
+    public async Task<(bool started, int? retryAfterSeconds)> TriggerMatchAsync(int companyId, bool bypassCooldown = false)
     {
         var profile = await _db.CompanyProfiles.FindAsync(companyId);
         if (profile is null)
             return (false, null);
 
-        // Check 24h cooldown
-        if (profile.LastMatchedAt.HasValue)
+        // Check 24h cooldown (skip for admin)
+        if (!bypassCooldown && profile.LastMatchedAt.HasValue)
         {
             var cooldownEnd = profile.LastMatchedAt.Value.AddHours(24);
             if (DateTime.UtcNow < cooldownEnd)
@@ -249,14 +259,14 @@ public class CompanyService
         return (true, null);
     }
 
-    public async Task<(bool started, int? retryAfterSeconds)> TriggerResetAsync(int companyId)
+    public async Task<(bool started, int? retryAfterSeconds)> TriggerResetAsync(int companyId, bool bypassCooldown = false)
     {
         var profile = await _db.CompanyProfiles.FindAsync(companyId);
         if (profile is null)
             return (false, null);
 
-        // Check 24h cooldown
-        if (profile.LastMatchedAt.HasValue)
+        // Check 24h cooldown (skip for admin)
+        if (!bypassCooldown && profile.LastMatchedAt.HasValue)
         {
             var cooldownEnd = profile.LastMatchedAt.Value.AddHours(24);
             if (DateTime.UtcNow < cooldownEnd)
@@ -281,6 +291,9 @@ public class CompanyService
         new()
         {
             Id = p.Id,
+            UserId = p.UserId,
+            OwnerName = p.User?.FullName,
+            OwnerEmail = p.User?.Email,
             CompanyName = p.CompanyName,
             Industry = p.Industry,
             Province = p.Province,

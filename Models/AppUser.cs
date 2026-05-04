@@ -34,4 +34,6 @@ public class AppUser
 
     [Column("last_login")]
     public DateTime? LastLogin { get; set; }
+
+    public CompanyProfile? CompanyProfile { get; set; }
 }

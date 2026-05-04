@@ -60,6 +60,17 @@ public class AuthService
         _db.Users.Add(user);
         await _db.SaveChangesAsync();
 
+        // Auto-create empty company profile for this user
+        var profile = new CompanyProfile
+        {
+            CompanyName = request.FullName.Trim(),
+            UserId = user.Id,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow,
+        };
+        _db.Set<CompanyProfile>().Add(profile);
+        await _db.SaveChangesAsync();
+
         return (ToDto(user), null);
     }
 
