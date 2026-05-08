@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ProcurePortal.API.DTOs;
 using ProcurePortal.API.Services;
+using System.Security.Claims;
 
 namespace ProcurePortal.API.Controllers;
 
@@ -10,10 +11,14 @@ namespace ProcurePortal.API.Controllers;
 public class AuthController : ControllerBase
 {
     private readonly AuthService _authService;
+    private readonly EmailService _emailService;
+    private readonly IConfiguration _config;
 
-    public AuthController(AuthService authService)
+    public AuthController(AuthService authService, EmailService emailService, IConfiguration config)
     {
         _authService = authService;
+        _emailService = emailService;
+        _config = config;
     }
 
     [HttpPost("login")]
@@ -50,6 +55,69 @@ public class AuthController : ControllerBase
             fullName = User.Identity?.Name,
             role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value,
         });
+    }
+
+    // ── Email confirmation ──
+
+    [Authorize]
+    [HttpPost("send-confirmation")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> SendConfirmation()
+    {
+        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        var (token, error) = await _authService.SendConfirmationAsync(userId);
+        if (error is not null)
+            return BadRequest(new { message = error });
+
+        var frontendUrl = _config["App:FrontendUrl"] ?? "http://localhost:5173";
+        var confirmUrl = $"{frontendUrl}/confirm-email?token={token}";
+        var settings = await _authService.GetSettingsAsync(userId);
+        var email = settings!.Email;
+
+        await _emailService.SendConfirmationEmailAsync(email, confirmUrl);
+        return Ok(new { message = "Confirmation email sent" });
+    }
+
+    [HttpGet("confirm-email")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> ConfirmEmail([FromQuery] string token)
+    {
+        if (string.IsNullOrEmpty(token))
+            return BadRequest(new { message = "Token is required" });
+
+        var success = await _authService.ConfirmEmailAsync(token);
+        if (!success)
+            return BadRequest(new { message = "Invalid or expired token" });
+
+        return Ok(new { message = "Email confirmed successfully" });
+    }
+
+    // ── User settings ──
+
+    [Authorize]
+    [HttpGet("settings")]
+    [ProducesResponseType(typeof(SettingsDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetSettings()
+    {
+        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        var settings = await _authService.GetSettingsAsync(userId);
+        if (settings is null) return NotFound();
+        return Ok(settings);
+    }
+
+    [Authorize]
+    [HttpPut("settings")]
+    [ProducesResponseType(typeof(SettingsDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> UpdateSettings([FromBody] UpdateSettingsRequest request)
+    {
+        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        var (settings, error) = await _authService.UpdateSettingsAsync(userId, request);
+        if (error is not null)
+            return BadRequest(new { message = error });
+        return Ok(settings);
     }
 
     // ── Admin-only: user management ──

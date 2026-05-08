@@ -35,5 +35,14 @@ public class AppUser
     [Column("last_login")]
     public DateTime? LastLogin { get; set; }
 
+    [Column("email_confirmed")]
+    public bool EmailConfirmed { get; set; } = false;
+
+    [Column("email_confirmation_token")]
+    public string? EmailConfirmationToken { get; set; }
+
+    [Column("notifications_enabled")]
+    public bool NotificationsEnabled { get; set; } = false;
+
     public CompanyProfile? CompanyProfile { get; set; }
 }

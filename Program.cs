@@ -15,6 +15,7 @@ builder.Services.AddDbContext<ProcurementsDbContext>(options =>
 builder.Services.AddScoped<TenderService>();
 builder.Services.AddScoped<CompanyService>();
 builder.Services.AddScoped<AuthService>();
+builder.Services.AddSingleton<EmailService>();
 
 // JWT Authentication
 var jwtKey = builder.Configuration["Jwt:Key"]
