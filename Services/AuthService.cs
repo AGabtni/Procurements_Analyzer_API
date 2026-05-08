@@ -35,7 +35,7 @@ public class AuthService
         await _db.SaveChangesAsync();
 
         var token = GenerateToken(user);
-        return new AuthResponse(token, user.Email, user.FullName, user.Role);
+        return new AuthResponse(token, user.Email, user.FullName, user.Role, user.EmailConfirmed, user.NotificationsEnabled);
     }
 
     public async Task<(UserDto? User, string? Error)> RegisterAsync(RegisterRequest request)
@@ -91,6 +91,69 @@ public class AuthService
         return true;
     }
 
+    public async Task<(string Token, string? Error)> SendConfirmationAsync(int userId)
+    {
+        var user = await _db.Users.FindAsync(userId);
+        if (user is null) return (null!, "User not found");
+
+        if (user.EmailConfirmed)
+            return (null!, "Email already confirmed");
+
+        var token = Guid.NewGuid().ToString("N");
+        user.EmailConfirmationToken = token;
+        await _db.SaveChangesAsync();
+
+        return (token, null);
+    }
+
+    public async Task<bool> ConfirmEmailAsync(string token)
+    {
+        var user = await _db.Users
+            .FirstOrDefaultAsync(u => u.EmailConfirmationToken == token);
+
+        if (user is null) return false;
+
+        user.EmailConfirmed = true;
+        user.EmailConfirmationToken = null;
+        await _db.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<SettingsDto?> GetSettingsAsync(int userId)
+    {
+        var user = await _db.Users.FindAsync(userId);
+        if (user is null) return null;
+        return new SettingsDto(user.Email, user.EmailConfirmed, user.NotificationsEnabled);
+    }
+
+    public async Task<(SettingsDto? Settings, string? Error)> UpdateSettingsAsync(int userId, UpdateSettingsRequest request)
+    {
+        var user = await _db.Users.FindAsync(userId);
+        if (user is null) return (null, "User not found");
+
+        if (request.Email is not null)
+        {
+            var newEmail = request.Email.ToLower().Trim();
+            if (newEmail != user.Email)
+            {
+                if (await _db.Users.AnyAsync(u => u.Email == newEmail && u.Id != userId))
+                    return (null, "Email already in use");
+
+                user.Email = newEmail;
+                user.EmailConfirmed = false;
+                user.EmailConfirmationToken = null; // will be regenerated on resend
+            }
+        }
+
+        if (request.NotificationsEnabled is not null)
+        {
+            user.NotificationsEnabled = request.NotificationsEnabled.Value;
+        }
+
+        await _db.SaveChangesAsync();
+        return (new SettingsDto(user.Email, user.EmailConfirmed, user.NotificationsEnabled), null);
+    }
+
     private string GenerateToken(AppUser user)
     {
         var key = new SymmetricSecurityKey(
@@ -117,5 +180,5 @@ public class AuthService
     }
 
     private static UserDto ToDto(AppUser u) =>
-        new(u.Id, u.Email, u.FullName, u.Role, u.IsActive, u.CreatedAt);
+        new(u.Id, u.Email, u.FullName, u.Role, u.IsActive, u.CreatedAt, u.EmailConfirmed, u.NotificationsEnabled);
 }
