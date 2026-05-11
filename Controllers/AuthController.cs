@@ -26,9 +26,9 @@ public class AuthController : ControllerBase
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
-        var result = await _authService.LoginAsync(request);
+        var (result, error) = await _authService.LoginAsync(request);
         if (result is null)
-            return Unauthorized(new { message = "Invalid credentials or account not activated" });
+            return Unauthorized(new { message = error });
         return Ok(result);
     }
 
@@ -128,6 +128,14 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> GetUsers()
     {
         return Ok(await _authService.GetAllUsersAsync());
+    }
+
+    [Authorize(Roles = "admin")]
+    [HttpGet("users/unlinked")]
+    [ProducesResponseType(typeof(List<UserDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetUnlinkedUsers()
+    {
+        return Ok(await _authService.GetUnlinkedUsersAsync());
     }
 
     [Authorize(Roles = "admin")]

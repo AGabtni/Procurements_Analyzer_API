@@ -137,6 +137,35 @@ public class CompanyController : ControllerBase
         return Ok(profiles);
     }
 
+    [HttpPost]
+    [Authorize(Roles = "admin")]
+    [ProducesResponseType(typeof(CompanyProfileDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> AdminCreate([FromBody] AdminCreateCompanyRequest request)
+    {
+        if (request.UserId.HasValue)
+        {
+            var existing = await _companyService.GetProfileByUserIdAsync(request.UserId.Value);
+            if (existing is not null)
+                return BadRequest(new { message = "This user already has a company profile" });
+        }
+        var profile = await _companyService.CreateProfileAsync(request, request.UserId);
+        return Created("", profile);
+    }
+
+    [HttpPatch("{id:int}/link-user")]
+    [Authorize(Roles = "admin")]
+    [ProducesResponseType(typeof(CompanyProfileDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> LinkUser(int id, [FromBody] LinkUserRequest request)
+    {
+        var (profile, error) = await _companyService.LinkUserAsync(id, request.UserId);
+        if (error is not null)
+            return profile is null ? NotFound(new { message = error }) : BadRequest(new { message = error });
+        return Ok(profile);
+    }
+
     [HttpGet("{id:int}")]
     [Authorize(Roles = "admin")]
     [ProducesResponseType(typeof(CompanyProfileDto), StatusCodes.Status200OK)]

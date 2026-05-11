@@ -27,31 +27,39 @@ graph LR
 - **Entity Framework Core 9** + Npgsql (PostgreSQL)
 - **Swashbuckle** (Swagger / OpenAPI)
 - **PostgreSQL 16** (shared with Python scraper)
+- **JWT Bearer** authentication (BCrypt password hashing)
+- **MailKit** (SMTP email — confirmation + match notifications)
 
 ## Project Structure
 
 ```
 ├── Controllers/
 │   ├── TendersController.cs     # Tender search/filter/detail endpoints
-│   └── CompanyController.cs     # Company profile, preferences, matches
+│   ├── CompanyController.cs     # Company profile, preferences, matches
+│   ├── AuthController.cs        # Register, login, email confirmation, settings
+│   └── NotificationsController.cs # Internal webhook for match notifications
 ├── Services/
 │   ├── TenderService.cs         # Tender queries and mapping
-│   └── CompanyService.cs        # Profile CRUD, preferences, match queries
+│   ├── CompanyService.cs        # Profile CRUD, preferences, match queries
+│   ├── AuthService.cs           # User registration, login, JWT, email settings
+│   └── EmailService.cs          # SMTP email (confirmation + match notifications)
 ├── Models/
 │   ├── TenderNotice.cs          # EF model — tender_notice table
 │   ├── TenderHeader.cs          # EF model — tender_header table
 │   ├── TenderDocument.cs        # EF model — tender_documents table
 │   ├── CompanyProfile.cs        # EF model — company_profile table
 │   ├── CompanyPreferences.cs    # EF model — company_preferences table
-│   └── CompanyMatch.cs          # EF model — company_matches table
+│   ├── CompanyMatch.cs          # EF model — company_matches table
+│   └── AppUser.cs               # EF model — app_users table
 ├── DTOs/
 │   ├── TenderDtos.cs            # Tender request/response shapes
-│   └── CompanyDtos.cs           # Company/match request/response shapes
+│   ├── CompanyDtos.cs           # Company/match request/response shapes
+│   └── AuthDtos.cs              # Auth request/response shapes
 ├── Data/
-│   └── ProcurementsDbContext.cs  # EF DbContext (6 DbSets)
+│   └── ProcurementsDbContext.cs  # EF DbContext (7 DbSets)
 ├── Program.cs                   # App startup + DI configuration
-├── appsettings.json             # Base config
-├── appsettings.Development.json # Local DB connection (gitignored)
+├── appsettings.json             # Base config (placeholders for secrets)
+├── appsettings.Development.json # Local secrets (gitignored)
 └── ProcurePortal.API.csproj     # Project file + NuGet packages
 ```
 
@@ -81,6 +89,23 @@ graph LR
 | `GET` | `/api/company/{id}/matches` | List matches (filter: `?status=saved&limit=50`) |
 | `GET` | `/api/company/{id}/matches/stats` | Match stats (counts, avg score, high-score count) |
 | `PATCH` | `/api/company/{id}/matches/{matchId}/status` | Update match status (new/viewed/saved/dismissed) |
+
+### Authentication
+
+| Method | Route | Description |
+|--------|-------|-------------|
+| `POST` | `/api/auth/register` | Register new user (username, email, password) |
+| `POST` | `/api/auth/login` | Login (returns JWT token) |
+| `POST` | `/api/auth/send-confirmation` | Send email confirmation link |
+| `GET` | `/api/auth/confirm-email` | Confirm email via token |
+| `GET` | `/api/auth/settings` | Get user notification settings |
+| `PUT` | `/api/auth/settings` | Update notification settings |
+
+### Notifications (Internal)
+
+| Method | Route | Description |
+|--------|-------|-------------|
+| `POST` | `/api/notifications/match-complete` | Webhook called by Python worker after matching (secured by `X-Internal-Key` header) |
 
 ### Search Parameters (`GET /api/tenders`)
 
@@ -130,14 +155,22 @@ Create `appsettings.Development.json` (gitignored):
 
 ```json
 {
-  "Logging": {
-    "LogLevel": {
-      "Default": "Information",
-      "Microsoft.AspNetCore": "Warning"
-    }
-  },
   "ConnectionStrings": {
     "DefaultConnection": "Host=localhost;Port=5432;Database=procurements;Username=procurements_dev;Password=YOUR_PASSWORD"
+  },
+  "Jwt": {
+    "Key": "YOUR_JWT_SECRET_KEY_MIN_32_CHARS"
+  },
+  "App": {
+    "InternalApiKey": "YOUR_INTERNAL_API_KEY"
+  },
+  "Smtp": {
+    "Host": "smtp.gmail.com",
+    "Port": "587",
+    "Username": "YOUR_EMAIL@gmail.com",
+    "Password": "YOUR_APP_PASSWORD",
+    "FromEmail": "YOUR_EMAIL@gmail.com",
+    "FromName": "ProcurePortal"
   }
 }
 ```
@@ -239,5 +272,11 @@ erDiagram
 - [x] Matching preferences management (2 endpoints)
 - [x] Match results + stats + status management (3 endpoints)
 - [x] Region of delivery/opportunity in tender detail
-- [ ] Authentication & rate limiting
+- [x] JWT authentication (register, login, token-gated endpoints)
+- [x] Email confirmation (MailKit/SMTP, token-based flow)
+- [x] Match notification emails (internal webhook from Python worker)
+- [x] Notification settings (opt-in/out per user)
+- [x] Secrets moved to `appsettings.Development.json` (gitignored)
+- [x] Role-based authorization (admin vs user)
+- [ ] Rate limiting
 - [ ] Docker containerization

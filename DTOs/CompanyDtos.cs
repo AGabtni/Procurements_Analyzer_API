@@ -96,6 +96,16 @@ public class CreateCompanyProfileRequest
     public CompanyPreferencesRequest? Preferences { get; set; }
 }
 
+public class AdminCreateCompanyRequest : CreateCompanyProfileRequest
+{
+    public int? UserId { get; set; }
+}
+
+public class LinkUserRequest
+{
+    public int? UserId { get; set; }
+}
+
 public class UpdateCompanyProfileRequest
 {
     [MaxLength(200)]

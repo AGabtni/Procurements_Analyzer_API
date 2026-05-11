@@ -20,22 +20,22 @@ public class AuthService
         _config = config;
     }
 
-    public async Task<AuthResponse?> LoginAsync(LoginRequest request)
+    public async Task<(AuthResponse? Response, string? Error)> LoginAsync(LoginRequest request)
     {
         var user = await _db.Users
             .FirstOrDefaultAsync(u => u.Email == request.Email.ToLower().Trim());
 
         if (user is null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
-            return null;
+            return (null, "Invalid credentials");
 
         if (!user.IsActive)
-            return null;
+            return (null, "Account is inactive. Please contact an administrator.");
 
         user.LastLogin = DateTime.UtcNow;
         await _db.SaveChangesAsync();
 
         var token = GenerateToken(user);
-        return new AuthResponse(token, user.Email, user.FullName, user.Role, user.EmailConfirmed, user.NotificationsEnabled);
+        return (new AuthResponse(token, user.Email, user.FullName, user.Role, user.EmailConfirmed, user.NotificationsEnabled), null);
     }
 
     public async Task<(UserDto? User, string? Error)> RegisterAsync(RegisterRequest request)
@@ -60,25 +60,33 @@ public class AuthService
         _db.Users.Add(user);
         await _db.SaveChangesAsync();
 
-        // Auto-create empty company profile for this user
-        var profile = new CompanyProfile
-        {
-            CompanyName = request.FullName.Trim(),
-            UserId = user.Id,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow,
-        };
-        _db.Set<CompanyProfile>().Add(profile);
-        await _db.SaveChangesAsync();
-
         return (ToDto(user), null);
     }
 
     public async Task<List<UserDto>> GetAllUsersAsync()
     {
         return await _db.Users
+            .Include(u => u.CompanyProfile)
             .OrderBy(u => u.CreatedAt)
-            .Select(u => ToDto(u))
+            .Select(u => new UserDto(
+                u.Id, u.Email, u.FullName, u.Role, u.IsActive, u.CreatedAt,
+                u.EmailConfirmed, u.NotificationsEnabled,
+                u.CompanyProfile != null ? u.CompanyProfile.Id : (int?)null,
+                u.CompanyProfile != null ? u.CompanyProfile.CompanyName : null
+            ))
+            .ToListAsync();
+    }
+
+    public async Task<List<UserDto>> GetUnlinkedUsersAsync()
+    {
+        return await _db.Users
+            .Include(u => u.CompanyProfile)
+            .Where(u => u.CompanyProfile == null && u.IsActive)
+            .OrderBy(u => u.FullName)
+            .Select(u => new UserDto(
+                u.Id, u.Email, u.FullName, u.Role, u.IsActive, u.CreatedAt,
+                u.EmailConfirmed, u.NotificationsEnabled, null, null
+            ))
             .ToListAsync();
     }
 
@@ -180,5 +188,6 @@ public class AuthService
     }
 
     private static UserDto ToDto(AppUser u) =>
-        new(u.Id, u.Email, u.FullName, u.Role, u.IsActive, u.CreatedAt, u.EmailConfirmed, u.NotificationsEnabled);
+        new(u.Id, u.Email, u.FullName, u.Role, u.IsActive, u.CreatedAt, u.EmailConfirmed, u.NotificationsEnabled,
+            u.CompanyProfile?.Id, u.CompanyProfile?.CompanyName);
 }

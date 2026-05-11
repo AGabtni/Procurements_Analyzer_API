@@ -126,6 +126,26 @@ public class CompanyService
         return true;
     }
 
+    public async Task<(CompanyProfileDto? Profile, string? Error)> LinkUserAsync(int companyId, int? userId)
+    {
+        var profile = await _db.CompanyProfiles.Include(p => p.Preferences).Include(p => p.User)
+            .FirstOrDefaultAsync(p => p.Id == companyId);
+        if (profile is null) return (null, "Company profile not found");
+
+        if (userId.HasValue)
+        {
+            var existing = await _db.CompanyProfiles.AnyAsync(p => p.UserId == userId && p.Id != companyId);
+            if (existing) return (null, "This user is already linked to another company");
+        }
+
+        profile.UserId = userId;
+        profile.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+
+        await _db.Entry(profile).Reference(p => p.User).LoadAsync();
+        return (MapToDto(profile), null);
+    }
+
     // ── Preferences CRUD ──
 
     public async Task<CompanyPreferencesDto?> GetPreferencesAsync(int companyId)
