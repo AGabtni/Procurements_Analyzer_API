@@ -30,30 +30,37 @@ public class TenderService
         {
             var kw = searchParams.Keyword.ToLower();
             query = query.Where(t =>
-                (t.Title != null && t.Title.ToLower().Contains(kw)) ||
-                (t.BuyingOrganization != null && t.BuyingOrganization.ToLower().Contains(kw)) ||
-                (t.NoticeId != null && t.NoticeId.ToLower().Contains(kw)));
+                (t.Title != null && t.Title.ToLower().Contains(kw))
+                || (t.BuyingOrganization != null && t.BuyingOrganization.ToLower().Contains(kw))
+                || (t.NoticeId != null && t.NoticeId.ToLower().Contains(kw))
+            );
         }
 
         // Filter: category
         if (!string.IsNullOrWhiteSpace(searchParams.Category))
         {
-            query = query.Where(t => t.ProcurementCategory != null &&
-                t.ProcurementCategory.ToLower().Contains(searchParams.Category.ToLower()));
+            query = query.Where(t =>
+                t.ProcurementCategory != null
+                && t.ProcurementCategory.ToLower().Contains(searchParams.Category.ToLower())
+            );
         }
 
         // Filter: organization
         if (!string.IsNullOrWhiteSpace(searchParams.Organization))
         {
-            query = query.Where(t => t.BuyingOrganization != null &&
-                t.BuyingOrganization.ToLower().Contains(searchParams.Organization.ToLower()));
+            query = query.Where(t =>
+                t.BuyingOrganization != null
+                && t.BuyingOrganization.ToLower().Contains(searchParams.Organization.ToLower())
+            );
         }
 
         // Filter: notice type
         if (!string.IsNullOrWhiteSpace(searchParams.NoticeType))
         {
-            query = query.Where(t => t.NoticeType != null &&
-                t.NoticeType.ToLower().Contains(searchParams.NoticeType.ToLower()));
+            query = query.Where(t =>
+                t.NoticeType != null
+                && t.NoticeType.ToLower().Contains(searchParams.NoticeType.ToLower())
+            );
         }
 
         // Get total count before pagination
@@ -62,10 +69,21 @@ public class TenderService
         // Sort
         query = searchParams.SortBy?.ToLower() switch
         {
-            "title" => searchParams.SortDesc ? query.OrderByDescending(t => t.Title) : query.OrderBy(t => t.Title),
-            "pub_date" => searchParams.SortDesc ? query.OrderByDescending(t => t.PublicationDate) : query.OrderBy(t => t.PublicationDate),
-            "organization" => searchParams.SortDesc ? query.OrderByDescending(t => t.BuyingOrganization) : query.OrderBy(t => t.BuyingOrganization),
-            _ => searchParams.SortDesc ? query.OrderByDescending(t => t.ClosingDate) : query.OrderBy(t => t.ClosingDate),
+            "title" => searchParams.SortDesc
+                ? query.OrderByDescending(t => t.Title)
+                : query.OrderBy(t => t.Title),
+            "pub_date" => searchParams.SortDesc
+                ? query.OrderByDescending(t => t.PublicationDate)
+                : query.OrderBy(t => t.PublicationDate),
+            "organization" => searchParams.SortDesc
+                ? query.OrderByDescending(t => t.BuyingOrganization!.ToLower())
+                : query.OrderBy(t => t.BuyingOrganization!.ToLower()),
+            "notice_type" => searchParams.SortDesc
+                ? query.OrderByDescending(t => t.NoticeType)
+                : query.OrderBy(t => t.NoticeType),
+            _ => searchParams.SortDesc
+                ? query.OrderByDescending(t => t.ClosingDate)
+                : query.OrderBy(t => t.ClosingDate),
         };
 
         // Paginate
@@ -102,10 +120,11 @@ public class TenderService
     public async Task<TenderDetailDto?> GetByIdAsync(int id)
     {
         var tender = await _db.TenderNotices.FindAsync(id);
-        if (tender is null) return null;
+        if (tender is null)
+            return null;
 
-        var documents = await _db.TenderDocuments
-            .Where(d => d.NoticeId == tender.NoticeId)
+        var documents = await _db
+            .TenderDocuments.Where(d => d.NoticeId == tender.NoticeId)
             .Select(d => new DocumentDto
             {
                 Id = d.Id,
@@ -145,17 +164,17 @@ public class TenderService
 
     public async Task<TenderDetailDto?> GetByNoticeIdAsync(string noticeId)
     {
-        var tender = await _db.TenderNotices
-            .FirstOrDefaultAsync(t => t.NoticeId == noticeId);
+        var tender = await _db.TenderNotices.FirstOrDefaultAsync(t => t.NoticeId == noticeId);
 
-        if (tender is null) return null;
+        if (tender is null)
+            return null;
         return await GetByIdAsync(tender.Id);
     }
 
     public async Task<List<string>> GetCategoriesAsync()
     {
-        return await _db.TenderNotices
-            .Where(t => t.ProcurementCategory != null)
+        return await _db
+            .TenderNotices.Where(t => t.ProcurementCategory != null)
             .Select(t => t.ProcurementCategory!)
             .Distinct()
             .OrderBy(c => c)
@@ -164,8 +183,8 @@ public class TenderService
 
     public async Task<List<string>> GetNoticeTypesAsync()
     {
-        return await _db.TenderNotices
-            .Where(t => t.NoticeType != null)
+        return await _db
+            .TenderNotices.Where(t => t.NoticeType != null)
             .Select(t => t.NoticeType!)
             .Distinct()
             .OrderBy(t => t)
@@ -174,7 +193,8 @@ public class TenderService
 
     private static DateTime? TimestampToDateTime(float? timestamp)
     {
-        if (timestamp is null or 0) return null;
+        if (timestamp is null or 0)
+            return null;
         return DateTimeOffset.FromUnixTimeSeconds((long)timestamp.Value).UtcDateTime;
     }
 }
