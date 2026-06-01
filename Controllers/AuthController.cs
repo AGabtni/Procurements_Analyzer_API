@@ -1,8 +1,8 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ProcurePortal.API.DTOs;
 using ProcurePortal.API.Services;
-using System.Security.Claims;
 
 namespace ProcurePortal.API.Controllers;
 
@@ -48,13 +48,15 @@ public class AuthController : ControllerBase
     [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
     public IActionResult Me()
     {
-        return Ok(new
-        {
-            id = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value,
-            email = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value,
-            fullName = User.Identity?.Name,
-            role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value,
-        });
+        return Ok(
+            new
+            {
+                id = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value,
+                email = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value,
+                fullName = User.Identity?.Name,
+                role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value,
+            }
+        );
     }
 
     // ── Email confirmation ──
@@ -70,7 +72,9 @@ public class AuthController : ControllerBase
         if (error is not null)
             return BadRequest(new { message = error });
 
-        var frontendUrl = _config["App:FrontendUrl"] ?? "http://localhost:5173";
+        var frontendUrl =
+            _config["App:FrontendUrl"]
+            ?? throw new InvalidOperationException("App:FrontendUrl must be configured");
         var confirmUrl = $"{frontendUrl}/confirm-email?token={token}";
         var settings = await _authService.GetSettingsAsync(userId);
         var email = settings!.Email;
@@ -103,7 +107,8 @@ public class AuthController : ControllerBase
     {
         var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
         var settings = await _authService.GetSettingsAsync(userId);
-        if (settings is null) return NotFound();
+        if (settings is null)
+            return NotFound();
         return Ok(settings);
     }
 

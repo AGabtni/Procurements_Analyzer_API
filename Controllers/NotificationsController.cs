@@ -18,7 +18,8 @@ public class NotificationsController : ControllerBase
         ProcurementsDbContext db,
         EmailService emailService,
         IConfiguration config,
-        ILogger<NotificationsController> logger)
+        ILogger<NotificationsController> logger
+    )
     {
         _db = db;
         _emailService = emailService;
@@ -48,8 +49,8 @@ public class NotificationsController : ControllerBase
             return Ok(new { message = "No new matches, skipping notification" });
 
         // Find the company's owner
-        var profile = await _db.CompanyProfiles
-            .Include(p => p.User)
+        var profile = await _db
+            .CompanyProfiles.Include(p => p.User)
             .FirstOrDefaultAsync(p => p.Id == request.CompanyId);
 
         if (profile?.User is null)
@@ -62,30 +63,50 @@ public class NotificationsController : ControllerBase
 
         if (!user.EmailConfirmed)
         {
-            _logger.LogInformation("Skipping notification for company {CompanyId}: email not confirmed", request.CompanyId);
+            _logger.LogInformation(
+                "Skipping notification for company {CompanyId}: email not confirmed",
+                request.CompanyId
+            );
             return Ok(new { message = "Email not confirmed" });
         }
 
         if (!user.NotificationsEnabled)
         {
-            _logger.LogInformation("Skipping notification for company {CompanyId}: notifications disabled", request.CompanyId);
+            _logger.LogInformation(
+                "Skipping notification for company {CompanyId}: notifications disabled",
+                request.CompanyId
+            );
             return Ok(new { message = "Notifications disabled" });
         }
 
-        var frontendUrl = _config["App:FrontendUrl"] ?? "http://localhost:5173";
+        var frontendUrl =
+            _config["App:FrontendUrl"]
+            ?? throw new InvalidOperationException("App:FrontendUrl must be configured");
         var dashboardUrl = $"{frontendUrl}/my-company?tab=matches";
 
         try
         {
             await _emailService.SendMatchNotificationAsync(
-                user.Email, user.FullName, request.NewMatchCount, dashboardUrl);
-            _logger.LogInformation("Match notification sent to {Email} for company {CompanyId} ({Count} matches)",
-                user.Email, request.CompanyId, request.NewMatchCount);
+                user.Email,
+                user.FullName,
+                request.NewMatchCount,
+                dashboardUrl
+            );
+            _logger.LogInformation(
+                "Match notification sent to {Email} for company {CompanyId} ({Count} matches)",
+                user.Email,
+                request.CompanyId,
+                request.NewMatchCount
+            );
             return Ok(new { message = "Notification sent" });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to send match notification for company {CompanyId}", request.CompanyId);
+            _logger.LogError(
+                ex,
+                "Failed to send match notification for company {CompanyId}",
+                request.CompanyId
+            );
             return StatusCode(500, new { message = "Failed to send notification" });
         }
     }

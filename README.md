@@ -278,5 +278,7 @@ erDiagram
 - [x] Notification settings (opt-in/out per user)
 - [x] Secrets moved to `appsettings.Development.json` (gitignored)
 - [x] Role-based authorization (admin vs user)
+- [x] Sort by notice type
+- [ ] Tender description formatting endpoint / rich-text support
 - [ ] Rate limiting
 - [ ] Docker containerization
