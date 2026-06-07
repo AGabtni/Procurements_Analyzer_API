@@ -53,6 +53,32 @@ public class TendersController : ControllerBase
     }
 
     /// <summary>
+    /// Download a tender document stored either as an external URL or binary content.
+    /// </summary>
+    [HttpGet("documents/{id:int}/download")]
+    [ProducesResponseType(StatusCodes.Status302Found)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DownloadDocument(int id)
+    {
+        var document = await _tenderService.GetDocumentByIdAsync(id);
+        if (document is null)
+            return NotFound();
+
+        if (!string.IsNullOrWhiteSpace(document.DocUrl))
+            return Redirect(document.DocUrl);
+
+        if (document.DocContent is { Length: > 0 })
+            return File(
+                document.DocContent,
+                "application/octet-stream",
+                document.DocTitle ?? $"document-{id}"
+            );
+
+        return NotFound();
+    }
+
+    /// <summary>
     /// Get all distinct procurement categories.
     /// </summary>
     [HttpGet("categories")]

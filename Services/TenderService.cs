@@ -129,7 +129,11 @@ public class TenderService
             {
                 Id = d.Id,
                 Title = d.DocTitle,
-                Url = d.DocUrl,
+                Url = !string.IsNullOrWhiteSpace(d.DocUrl)
+                    ? d.DocUrl
+                    : d.DocContent != null
+                        ? $"/api/tenders/documents/{d.Id}/download"
+                        : null,
                 Language = d.DocLanguage,
                 Type = d.DocType,
             })
@@ -169,6 +173,11 @@ public class TenderService
         if (tender is null)
             return null;
         return await GetByIdAsync(tender.Id);
+    }
+
+    public async Task<TenderDocument?> GetDocumentByIdAsync(int id)
+    {
+        return await _db.TenderDocuments.FirstOrDefaultAsync(d => d.Id == id);
     }
 
     public async Task<List<string>> GetCategoriesAsync()

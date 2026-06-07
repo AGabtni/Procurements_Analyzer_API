@@ -27,4 +27,7 @@ public class TenderDocument
 
     [Column("doc_type")]
     public string? DocType { get; set; }
+
+    [Column("doc_content")]
+    public byte[]? DocContent { get; set; }
 }
