@@ -281,4 +281,4 @@ erDiagram
 - [x] Sort by notice type
 - [ ] Tender description formatting endpoint / rich-text support
 - [ ] Rate limiting
-- [ ] Docker containerization
+- [x] Docker containerization

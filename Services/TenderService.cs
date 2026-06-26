@@ -129,11 +129,10 @@ public class TenderService
             {
                 Id = d.Id,
                 Title = d.DocTitle,
-                Url = !string.IsNullOrWhiteSpace(d.DocUrl)
-                    ? d.DocUrl
-                    : d.DocContent != null
-                        ? $"/api/tenders/documents/{d.Id}/download"
-                        : null,
+                Url =
+                    !string.IsNullOrWhiteSpace(d.DocUrl) ? d.DocUrl
+                    : d.DocContent != null ? $"/api/tenders/documents/{d.Id}/download"
+                    : null,
                 Language = d.DocLanguage,
                 Type = d.DocType,
             })
@@ -198,6 +197,30 @@ public class TenderService
             .Distinct()
             .OrderBy(t => t)
             .ToListAsync();
+    }
+
+    public async Task<TenderStatsDto> GetStatsAsync()
+    {
+        var newToday = await _db
+            .Database.SqlQueryRaw<int>(
+                @"
+            SELECT count(*)::int AS ""Value""
+            FROM tender_notice
+            WHERE to_timestamp(pub_date)::date = CURRENT_DATE"
+            )
+            .FirstAsync();
+
+        var closingThisWeek = await _db
+            .Database.SqlQueryRaw<int>(
+                @"
+            SELECT count(*)::int AS ""Value""
+            FROM tender_notice
+            WHERE to_timestamp(closing_date) >= now()
+              AND to_timestamp(closing_date) <  now() + interval '7 days'"
+            )
+            .FirstAsync();
+
+        return new TenderStatsDto { NewToday = newToday, ClosingThisWeek = closingThisWeek };
     }
 
     private static DateTime? TimestampToDateTime(float? timestamp)

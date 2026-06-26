@@ -70,3 +70,14 @@ public class PagedResult<T>
     public int PageSize { get; set; }
     public int TotalPages => (int)Math.Ceiling((double)TotalCount / PageSize);
 }
+
+/// <summary>
+/// Aggregate dashboard statistics computed directly in the DB.
+/// All fields are nullable so future stats can be added without breaking old clients.
+/// </summary>
+public class TenderStatsDto
+{
+    public int? NewToday { get; set; }
+    public int? ClosingThisWeek { get; set; }
+    // Future: OpenCount, NewThisWeek, ClosingToday, ...
+}

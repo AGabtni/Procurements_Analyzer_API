@@ -79,6 +79,18 @@ public class TendersController : ControllerBase
     }
 
     /// <summary>
+    /// Aggregate dashboard statistics (new today, closing this week, …).
+    /// Computed directly in the DB — accurate regardless of result-page limits.
+    /// </summary>
+    [HttpGet("stats")]
+    [ProducesResponseType(typeof(TenderStatsDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetStats()
+    {
+        var stats = await _tenderService.GetStatsAsync();
+        return Ok(stats);
+    }
+
+    /// <summary>
     /// Get all distinct procurement categories.
     /// </summary>
     [HttpGet("categories")]
