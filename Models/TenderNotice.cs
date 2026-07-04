@@ -55,6 +55,9 @@ public class TenderNotice
     [Column("description")]
     public string? Description { get; set; }
 
+    [Column("description_md")]
+    public string? DescriptionMd { get; set; }
+
     [Column("contact_name")]
     public string? ContactName { get; set; }
 

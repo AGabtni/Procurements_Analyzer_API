@@ -32,6 +32,7 @@ public class TenderDetailDto
     public string? ExternalLink { get; set; }
     public bool? HasDocuments { get; set; }
     public string? Description { get; set; }
+    public string? DescriptionMd { get; set; }
     public string? ContactName { get; set; }
     public string? ContactEmail { get; set; }
     public string? ContactPhone { get; set; }

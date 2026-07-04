@@ -156,6 +156,7 @@ public class TenderService
             ExternalLink = tender.ExternalLink,
             HasDocuments = tender.HasDocuments,
             Description = tender.Description,
+            DescriptionMd = tender.DescriptionMd,
             ContactName = tender.ContactName,
             ContactEmail = tender.ContactEmail,
             ContactPhone = tender.ContactPhone,
