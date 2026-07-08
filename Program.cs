@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using ProcurePortal.API.Data;
 using ProcurePortal.API.Services;
+using Resend;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -12,11 +13,21 @@ builder.Services.AddDbContext<ProcurementsDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"))
 );
 
+// Resend email
+builder.Services.AddOptions();
+builder.Services.AddHttpClient<ResendClient>();
+builder.Services.Configure<ResendClientOptions>(o =>
+    o.ApiToken =
+        builder.Configuration["Resend:ApiKey"]
+        ?? throw new InvalidOperationException("Resend:ApiKey must be configured")
+);
+builder.Services.AddTransient<IResend, ResendClient>();
+
 // Services
 builder.Services.AddScoped<TenderService>();
 builder.Services.AddScoped<CompanyService>();
 builder.Services.AddScoped<AuthService>();
-builder.Services.AddSingleton<EmailService>();
+builder.Services.AddScoped<EmailService>();
 
 // JWT Authentication
 var jwtKey =

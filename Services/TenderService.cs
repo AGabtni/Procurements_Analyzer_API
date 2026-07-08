@@ -214,10 +214,10 @@ public class TenderService
         var closingThisWeek = await _db
             .Database.SqlQueryRaw<int>(
                 @"
-            SELECT count(*)::int AS ""Value""
-            FROM tender_notice
-            WHERE to_timestamp(closing_date) >= now()
-              AND to_timestamp(closing_date) <  now() + interval '7 days'"
+                SELECT count(*)::int AS ""Value""
+                FROM tender_notice
+                WHERE to_timestamp(closing_date) >= NOW()
+                AND to_timestamp(closing_date) < DATE_TRUNC('week', NOW()) + INTERVAL '1 week'"
             )
             .FirstAsync();
 
