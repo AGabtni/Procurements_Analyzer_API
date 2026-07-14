@@ -196,10 +196,11 @@ public class CompanyService
     }
 
     // ── Matches read (for a company) ──
-    public async Task<List<CompanyMatchDto>> GetMatchesAsync(
+    public async Task<PagedResult<CompanyMatchDto>> GetMatchesAsync(
         int companyId,
         string? status = null,
-        int limit = 50
+        int page = 1,
+        int pageSize = 25
     )
     {
         var query = _db.CompanyMatches.Include(m => m.Tender).Where(m => m.CompanyId == companyId);
@@ -207,9 +208,14 @@ public class CompanyService
         if (!string.IsNullOrWhiteSpace(status))
             query = query.Where(m => m.Status == status);
 
-        return await query
+        var totalCount = await query.CountAsync();
+        var clampedPageSize = Math.Clamp(pageSize, 1, 100);
+        var clampedPage = Math.Max(page, 1);
+
+        var items = await query
             .OrderByDescending(m => m.MatchScore)
-            .Take(Math.Clamp(limit, 1, 200))
+            .Skip((clampedPage - 1) * clampedPageSize)
+            .Take(clampedPageSize)
             .Select(m => new CompanyMatchDto
             {
                 Id = m.Id,
@@ -232,6 +238,14 @@ public class CompanyService
                 Status = m.Status,
             })
             .ToListAsync();
+
+        return new PagedResult<CompanyMatchDto>
+        {
+            Items = items,
+            TotalCount = totalCount,
+            Page = clampedPage,
+            PageSize = clampedPageSize,
+        };
     }
 
     public async Task<MatchStatsDto> GetMatchStatsAsync(int companyId)

@@ -83,12 +83,12 @@ public class CompanyController : ControllerBase
     }
 
     [HttpGet("me/matches")]
-    [ProducesResponseType(typeof(List<CompanyMatchDto>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetMyMatches([FromQuery] string? status, [FromQuery] int limit = 50)
+    [ProducesResponseType(typeof(PagedResult<CompanyMatchDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetMyMatches([FromQuery] string? status, [FromQuery] int page = 1, [FromQuery] int pageSize = 25)
     {
         var profile = await _companyService.GetProfileByUserIdAsync(GetUserId());
         if (profile is null) return NotFound();
-        var matches = await _companyService.GetMatchesAsync(profile.Id, status, limit);
+        var matches = await _companyService.GetMatchesAsync(profile.Id, status, page, pageSize);
         return Ok(matches);
     }
 
@@ -210,10 +210,10 @@ public class CompanyController : ControllerBase
 
     [HttpGet("{id:int}/matches")]
     [Authorize(Roles = "admin")]
-    [ProducesResponseType(typeof(List<CompanyMatchDto>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetMatches(int id, [FromQuery] string? status, [FromQuery] int limit = 50)
+    [ProducesResponseType(typeof(PagedResult<CompanyMatchDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetMatches(int id, [FromQuery] string? status, [FromQuery] int page = 1, [FromQuery] int pageSize = 25)
     {
-        var matches = await _companyService.GetMatchesAsync(id, status, limit);
+        var matches = await _companyService.GetMatchesAsync(id, status, page, pageSize);
         return Ok(matches);
     }
 
