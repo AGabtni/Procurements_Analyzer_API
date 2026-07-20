@@ -17,28 +17,48 @@ public class CompanyService
     // ── Profile CRUD ──
     public async Task<List<CompanyProfileDto>> GetAllProfilesAsync()
     {
-        return await _db
-            .CompanyProfiles.Include(p => p.Preferences).Include(p => p.User)
-            .Select(p => MapToDto(p))
+        var profiles = await _db.CompanyProfiles
+            .Include(p => p.Preferences)
+            .Include(p => p.User)
             .ToListAsync();
+
+        var labelMap = await BuildLabelMapAsync(
+            profiles.SelectMany(p => p.IndustryCodes ?? []).Distinct().ToList());
+
+        return profiles.Select(p => MapToDto(p, labelMap)).ToList();
     }
 
     public async Task<CompanyProfileDto?> GetProfileByIdAsync(int id)
     {
-        var profile = await _db
-            .CompanyProfiles.Include(p => p.Preferences).Include(p => p.User)
+        var profile = await _db.CompanyProfiles
+            .Include(p => p.Preferences)
+            .Include(p => p.User)
             .FirstOrDefaultAsync(p => p.Id == id);
 
-        return profile is null ? null : MapToDto(profile);
+        if (profile is null) return null;
+        var labelMap = await BuildLabelMapAsync(profile.IndustryCodes ?? []);
+        return MapToDto(profile, labelMap);
     }
 
     public async Task<CompanyProfileDto?> GetProfileByUserIdAsync(int userId)
     {
-        var profile = await _db
-            .CompanyProfiles.Include(p => p.Preferences).Include(p => p.User)
+        var profile = await _db.CompanyProfiles
+            .Include(p => p.Preferences)
+            .Include(p => p.User)
             .FirstOrDefaultAsync(p => p.UserId == userId);
 
-        return profile is null ? null : MapToDto(profile);
+        if (profile is null) return null;
+        var labelMap = await BuildLabelMapAsync(profile.IndustryCodes ?? []);
+        return MapToDto(profile, labelMap);
+    }
+
+    private async Task<Dictionary<string, string>> BuildLabelMapAsync(IEnumerable<string> codes)
+    {
+        var list = codes.ToList();
+        if (list.Count == 0) return [];
+        return await _db.Industries
+            .Where(i => list.Contains(i.Code))
+            .ToDictionaryAsync(i => i.Code, i => i.TitleEn);
     }
 
     public async Task<CompanyProfileDto> CreateProfileAsync(CreateCompanyProfileRequest request, int? userId = null)
@@ -46,7 +66,6 @@ public class CompanyService
         var profile = new CompanyProfile
         {
             CompanyName = request.CompanyName,
-            Industry = request.Industry,
             Province = request.Province,
             ServicesDescription = request.ServicesDescription,
             Keywords = request.Keywords,
@@ -55,6 +74,7 @@ public class CompanyService
             Certifications = request.Certifications,
             CompanySize = request.CompanySize,
             CommodityTypes = request.CommodityTypes,
+            IndustryCodes = request.IndustryCodes,
             UserId = userId,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow,
@@ -69,7 +89,8 @@ public class CompanyService
             await _db.Entry(profile).Reference(p => p.Preferences).LoadAsync();
         }
 
-        return MapToDto(profile);
+        var labelMap = await BuildLabelMapAsync(profile.IndustryCodes ?? []);
+        return MapToDto(profile, labelMap);
     }
 
     public async Task<CompanyProfileDto?> UpdateProfileAsync(
@@ -77,8 +98,8 @@ public class CompanyService
         UpdateCompanyProfileRequest request
     )
     {
-        var profile = await _db
-            .CompanyProfiles.Include(p => p.Preferences)
+        var profile = await _db.CompanyProfiles
+            .Include(p => p.Preferences)
             .FirstOrDefaultAsync(p => p.Id == id);
 
         if (profile is null)
@@ -86,8 +107,6 @@ public class CompanyService
 
         if (request.CompanyName is not null)
             profile.CompanyName = request.CompanyName;
-        if (request.Industry is not null)
-            profile.Industry = request.Industry;
         if (request.Province is not null)
             profile.Province = request.Province;
         if (request.ServicesDescription is not null)
@@ -109,10 +128,14 @@ public class CompanyService
         if (request.CommodityTypes is not null)
             profile.CommodityTypes = request.CommodityTypes;
 
+        if (request.IndustryCodes is not null)
+            profile.IndustryCodes = request.IndustryCodes;
+
         profile.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
 
-        return MapToDto(profile);
+        var labelMap = await BuildLabelMapAsync(profile.IndustryCodes ?? []);
+        return MapToDto(profile, labelMap);
     }
 
     public async Task<bool> DeleteProfileAsync(int id)
@@ -143,7 +166,8 @@ public class CompanyService
         await _db.SaveChangesAsync();
 
         await _db.Entry(profile).Reference(p => p.User).LoadAsync();
-        return (MapToDto(profile), null);
+        var labelMap = await BuildLabelMapAsync(profile.IndustryCodes ?? []);
+        return (MapToDto(profile, labelMap), null);
     }
 
     // ── Preferences CRUD ──
@@ -321,7 +345,7 @@ public class CompanyService
 
     // ── Mapping helpers ──
 
-    private static CompanyProfileDto MapToDto(CompanyProfile p) =>
+    private static CompanyProfileDto MapToDto(CompanyProfile p, Dictionary<string, string> labelMap) =>
         new()
         {
             Id = p.Id,
@@ -329,7 +353,6 @@ public class CompanyService
             OwnerName = p.User?.FullName,
             OwnerEmail = p.User?.Email,
             CompanyName = p.CompanyName,
-            Industry = p.Industry,
             Province = p.Province,
             ServicesDescription = p.ServicesDescription,
             Keywords = p.Keywords,
@@ -340,10 +363,14 @@ public class CompanyService
             CreatedAt = p.CreatedAt,
             UpdatedAt = p.UpdatedAt,
             LastMatchedAt = p.LastMatchedAt,
-            MatchingStatus = p.MatchingStatus,
+            MatchingStatus = p.MatchingStatus ?? "idle",
             MatchingStartedAt = p.MatchingStartedAt,
             CommodityTypes = p.CommodityTypes ?? [],
             AutoKeywords = p.AutoKeywords,
+            IndustryCodes = p.IndustryCodes ?? [],
+            Industries = (p.IndustryCodes ?? [])
+                .Select(c => new IndustryLabelDto { Code = c, TitleEn = labelMap.GetValueOrDefault(c, c) })
+                .ToArray(),
             Preferences = p.Preferences is null ? null : MapPrefsToDto(p.Preferences),
         };
 

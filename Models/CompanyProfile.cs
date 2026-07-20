@@ -14,9 +14,6 @@ public class CompanyProfile
     [Column("company_name")]
     public string CompanyName { get; set; } = string.Empty;
 
-    [Column("industry")]
-    public string? Industry { get; set; }
-
     [Column("province")]
     public string? Province { get; set; }
 
@@ -64,6 +61,9 @@ public class CompanyProfile
     [Column("user_id")]
     public int? UserId { get; set; }
     public AppUser? User { get; set; }
+
+    [Column("industry_codes")]
+    public string[]? IndustryCodes { get; set; }
 
     public List<CompanyMatch> Matches { get; set; } = [];
 }

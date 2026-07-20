@@ -26,6 +26,7 @@ builder.Services.AddTransient<IResend, ResendClient>();
 // Services
 builder.Services.AddScoped<TenderService>();
 builder.Services.AddScoped<CompanyService>();
+builder.Services.AddScoped<IndustryService>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<EmailService>();
 

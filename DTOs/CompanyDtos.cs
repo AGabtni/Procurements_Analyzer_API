@@ -11,7 +11,6 @@ public class CompanyProfileDto
     public string? OwnerName { get; set; }
     public string? OwnerEmail { get; set; }
     public string CompanyName { get; set; } = string.Empty;
-    public string? Industry { get; set; }
     public string? Province { get; set; }
     public string? ServicesDescription { get; set; }
     public string[]? Keywords { get; set; }
@@ -26,6 +25,8 @@ public class CompanyProfileDto
     public DateTime? MatchingStartedAt { get; set; }
     public string[] CommodityTypes { get; set; } = [];
     public string[]? AutoKeywords { get; set; }
+    public string[] IndustryCodes { get; set; } = [];
+    public IndustryLabelDto[] Industries { get; set; } = [];
     public CompanyPreferencesDto? Preferences { get; set; }
 }
 
@@ -75,9 +76,6 @@ public class CreateCompanyProfileRequest
     [Required, MaxLength(200)]
     public string CompanyName { get; set; } = string.Empty;
 
-    [MaxLength(100)]
-    public string? Industry { get; set; }
-
     [MaxLength(50)]
     public string? Province { get; set; }
 
@@ -93,6 +91,10 @@ public class CreateCompanyProfileRequest
     public string? CompanySize { get; set; }
 
     public string[]? CommodityTypes { get; set; }
+
+    [Required, MinLength(1, ErrorMessage = "At least one industry must be selected.")]
+    public string[] IndustryCodes { get; set; } = [];
+
     public CompanyPreferencesRequest? Preferences { get; set; }
 }
 
@@ -111,9 +113,6 @@ public class UpdateCompanyProfileRequest
     [MaxLength(200)]
     public string? CompanyName { get; set; }
 
-    [MaxLength(100)]
-    public string? Industry { get; set; }
-
     [MaxLength(50)]
     public string? Province { get; set; }
 
@@ -129,6 +128,9 @@ public class UpdateCompanyProfileRequest
     public string? CompanySize { get; set; }
 
     public string[]? CommodityTypes { get; set; }
+
+    // null = no change; empty array = clear all; non-empty = replace
+    public string[]? IndustryCodes { get; set; }
 }
 
 public class CompanyPreferencesRequest

@@ -17,6 +17,7 @@ public class ProcurementsDbContext : DbContext
     public DbSet<CompanyPreferences> CompanyPreferences { get; set; }
     public DbSet<CompanyMatch> CompanyMatches { get; set; }
     public DbSet<AppUser> Users { get; set; }
+    public DbSet<Industry> Industries { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -34,6 +35,7 @@ public class ProcurementsDbContext : DbContext
             entity.Property(e => e.GsinCodes).HasColumnType("varchar[]");
             entity.Property(e => e.Certifications).HasColumnType("varchar[]");
             entity.Property(e => e.CommodityTypes).HasColumnType("varchar[]");
+            entity.Property(e => e.IndustryCodes).HasColumnType("varchar[]");
 
             entity.HasOne(e => e.Preferences)
                 .WithOne(p => p.Company)
@@ -61,6 +63,14 @@ public class ProcurementsDbContext : DbContext
             entity.HasOne(e => e.CompanyProfile)
                 .WithOne(p => p.User)
                 .HasForeignKey<CompanyProfile>(p => p.UserId);
+        });
+
+        modelBuilder.Entity<Industry>(entity =>
+        {
+            entity.Property(e => e.Elements).HasColumnType("jsonb");
+            entity.HasMany(i => i.Children)
+                .WithOne(i => i.Parent)
+                .HasForeignKey(i => i.ParentCode);
         });
     }
 }
