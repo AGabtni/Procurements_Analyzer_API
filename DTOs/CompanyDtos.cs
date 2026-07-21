@@ -76,19 +76,19 @@ public class CreateCompanyProfileRequest
     [Required, MaxLength(200)]
     public string CompanyName { get; set; } = string.Empty;
 
-    [MaxLength(50)]
-    public string? Province { get; set; }
+    [Required, MaxLength(50)]
+    public string Province { get; set; } = string.Empty;
 
-    [MaxLength(2000)]
-    public string? ServicesDescription { get; set; }
+    [Required, MinLength(150, ErrorMessage = "Description must be at least 150 characters."), MaxLength(2000)]
+    public string ServicesDescription { get; set; } = string.Empty;
 
     public string[]? Keywords { get; set; }
     public int[]? UnspscCodes { get; set; }
     public string[]? GsinCodes { get; set; }
     public string[]? Certifications { get; set; }
 
-    [MaxLength(50)]
-    public string? CompanySize { get; set; }
+    [Required, MaxLength(50)]
+    public string CompanySize { get; set; } = string.Empty;
 
     public string[]? CommodityTypes { get; set; }
 
@@ -116,7 +116,7 @@ public class UpdateCompanyProfileRequest
     [MaxLength(50)]
     public string? Province { get; set; }
 
-    [MaxLength(2000)]
+    [MinLength(150, ErrorMessage = "Description must be at least 150 characters."), MaxLength(2000)]
     public string? ServicesDescription { get; set; }
 
     public string[]? Keywords { get; set; }
