@@ -22,7 +22,9 @@ public class TenderService
         if (searchParams.OpenOnly == true)
         {
             var nowTimestamp = (float)DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-            query = query.Where(t => t.ClosingDate > nowTimestamp);
+            query = query.Where(t =>
+                t.ClosingDate == null || t.ClosingDate <= 0 || t.ClosingDate > nowTimestamp
+            );
         }
 
         // Filter: keyword search (title or organization)
