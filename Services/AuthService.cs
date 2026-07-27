@@ -14,7 +14,13 @@ public class AuthService
     private readonly ProcurementsDbContext _db;
     private readonly IConfiguration _config;
 
-    private int TrialDays => int.TryParse(_config["App:TrialDays"], out var d) ? d : 7;
+    public int TrialDays => int.TryParse(_config["App:TrialDays"], out var d) ? d : 7;
+
+    public async Task<(DateTime? ActivatedAt, int TrialDays)> GetSessionMetaAsync(int userId)
+    {
+        var user = await _db.Users.FindAsync(userId);
+        return (user?.ActivatedAt, TrialDays);
+    }
 
     public AuthService(ProcurementsDbContext db, IConfiguration config)
     {

@@ -45,18 +45,19 @@ public class AuthController : ControllerBase
 
     [Authorize]
     [HttpGet("me")]
-    [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
-    public IActionResult Me()
+    public async Task<IActionResult> Me()
     {
-        return Ok(
-            new
-            {
-                id = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value,
-                email = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value,
-                fullName = User.Identity?.Name,
-                role = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value,
-            }
-        );
+        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        var (activatedAt, trialDays) = await _authService.GetSessionMetaAsync(userId);
+        return Ok(new
+        {
+            id = userId,
+            email = User.FindFirst(ClaimTypes.Email)?.Value,
+            fullName = User.Identity?.Name,
+            role = User.FindFirst(ClaimTypes.Role)?.Value,
+            activatedAt,
+            trialDays,
+        });
     }
 
     // ── Email confirmation ──
