@@ -44,5 +44,8 @@ public class AppUser
     [Column("notifications_enabled")]
     public bool NotificationsEnabled { get; set; } = false;
 
+    [Column("activated_at")]
+    public DateTime? ActivatedAt { get; set; }
+
     public CompanyProfile? CompanyProfile { get; set; }
 }

@@ -14,6 +14,8 @@ public class AuthService
     private readonly ProcurementsDbContext _db;
     private readonly IConfiguration _config;
 
+    private int TrialDays => int.TryParse(_config["App:TrialDays"], out var d) ? d : 7;
+
     public AuthService(ProcurementsDbContext db, IConfiguration config)
     {
         _db = db;
@@ -35,7 +37,7 @@ public class AuthService
         await _db.SaveChangesAsync();
 
         var token = GenerateToken(user);
-        return (new AuthResponse(token, user.Email, user.FullName, user.Role, user.EmailConfirmed, user.NotificationsEnabled), null);
+        return (new AuthResponse(token, user.Email, user.FullName, user.Role, user.EmailConfirmed, user.NotificationsEnabled, user.ActivatedAt, TrialDays), null);
     }
 
     public async Task<(UserDto? User, string? Error)> RegisterAsync(RegisterRequest request)
@@ -72,7 +74,8 @@ public class AuthService
                 u.Id, u.Email, u.FullName, u.Role, u.IsActive, u.CreatedAt,
                 u.EmailConfirmed, u.NotificationsEnabled,
                 u.CompanyProfile != null ? u.CompanyProfile.Id : (int?)null,
-                u.CompanyProfile != null ? u.CompanyProfile.CompanyName : null
+                u.CompanyProfile != null ? u.CompanyProfile.CompanyName : null,
+                u.ActivatedAt, TrialDays
             ))
             .ToListAsync();
     }
@@ -85,18 +88,19 @@ public class AuthService
             .OrderBy(u => u.FullName)
             .Select(u => new UserDto(
                 u.Id, u.Email, u.FullName, u.Role, u.IsActive, u.CreatedAt,
-                u.EmailConfirmed, u.NotificationsEnabled, null, null
+                u.EmailConfirmed, u.NotificationsEnabled, null, null, u.ActivatedAt, TrialDays
             ))
             .ToListAsync();
     }
 
-    public async Task<bool> SetActiveAsync(int userId, bool active)
+    public async Task<(bool Found, DateTime? ActivatedAt)> SetActiveAsync(int userId, bool active)
     {
         var user = await _db.Users.FindAsync(userId);
-        if (user is null) return false;
+        if (user is null) return (false, null);
         user.IsActive = active;
+        user.ActivatedAt = active ? DateTime.UtcNow : null;
         await _db.SaveChangesAsync();
-        return true;
+        return (true, user.ActivatedAt);
     }
 
     public async Task<(string Token, string? Error)> SendConfirmationAsync(int userId)
@@ -187,7 +191,7 @@ public class AuthService
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
 
-    private static UserDto ToDto(AppUser u) =>
+    private UserDto ToDto(AppUser u) =>
         new(u.Id, u.Email, u.FullName, u.Role, u.IsActive, u.CreatedAt, u.EmailConfirmed, u.NotificationsEnabled,
-            u.CompanyProfile?.Id, u.CompanyProfile?.CompanyName);
+            u.CompanyProfile?.Id, u.CompanyProfile?.CompanyName, u.ActivatedAt, TrialDays);
 }

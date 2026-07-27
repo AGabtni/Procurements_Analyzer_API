@@ -145,11 +145,13 @@ public class AuthController : ControllerBase
 
     [Authorize(Roles = "admin")]
     [HttpPatch("users/{id:int}/activate")]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> ActivateUser(int id)
     {
-        return await _authService.SetActiveAsync(id, true) ? NoContent() : NotFound();
+        var (found, activatedAt) = await _authService.SetActiveAsync(id, true);
+        if (!found) return NotFound();
+        return Ok(new { activatedAt });
     }
 
     [Authorize(Roles = "admin")]
@@ -158,6 +160,7 @@ public class AuthController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> DeactivateUser(int id)
     {
-        return await _authService.SetActiveAsync(id, false) ? NoContent() : NotFound();
+        var (found, _) = await _authService.SetActiveAsync(id, false);
+        return found ? NoContent() : NotFound();
     }
 }
