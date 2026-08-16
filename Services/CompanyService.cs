@@ -93,6 +93,38 @@ public class CompanyService
         return MapToDto(profile, labelMap);
     }
 
+    public async Task<CompanyProfileDto> AdminCreateProfileAsync(AdminCreateCompanyRequest request)
+    {
+        var profile = new CompanyProfile
+        {
+            CompanyName = request.CompanyName,
+            Province = request.Province,
+            ServicesDescription = request.ServicesDescription,
+            Keywords = request.Keywords,
+            UnspscCodes = request.UnspscCodes,
+            GsinCodes = request.GsinCodes,
+            Certifications = request.Certifications,
+            CompanySize = request.CompanySize,
+            CommodityTypes = request.CommodityTypes,
+            IndustryCodes = request.IndustryCodes,
+            UserId = request.UserId,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow,
+        };
+
+        _db.CompanyProfiles.Add(profile);
+        await _db.SaveChangesAsync();
+
+        if (request.Preferences is not null)
+        {
+            await UpsertPreferencesAsync(profile.Id, request.Preferences);
+            await _db.Entry(profile).Reference(p => p.Preferences).LoadAsync();
+        }
+
+        var labelMap = await BuildLabelMapAsync(profile.IndustryCodes ?? []);
+        return MapToDto(profile, labelMap);
+    }
+
     public async Task<CompanyProfileDto?> UpdateProfileAsync(
         int id,
         UpdateCompanyProfileRequest request
@@ -138,15 +170,21 @@ public class CompanyService
         return MapToDto(profile, labelMap);
     }
 
-    public async Task<bool> DeleteProfileAsync(int id)
+    public async Task<(bool Success, string? Error)> DeleteProfileAsync(int id)
     {
-        var profile = await _db.CompanyProfiles.FindAsync(id);
-        if (profile is null)
-            return false;
+        var profile = await _db.CompanyProfiles
+            .Include(p => p.Preferences)
+            .Include(p => p.Matches)
+            .FirstOrDefaultAsync(p => p.Id == id);
 
+        if (profile is null) return (false, "Company profile not found");
+        if (profile.UserId.HasValue) return (false, "Dissociate the company from its user before deleting");
+
+        if (profile.Preferences is not null) _db.CompanyPreferences.Remove(profile.Preferences);
+        _db.CompanyMatches.RemoveRange(profile.Matches);
         _db.CompanyProfiles.Remove(profile);
         await _db.SaveChangesAsync();
-        return true;
+        return (true, null);
     }
 
     public async Task<(CompanyProfileDto? Profile, string? Error)> LinkUserAsync(int companyId, int? userId)

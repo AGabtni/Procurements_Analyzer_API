@@ -12,10 +12,12 @@ namespace ProcurePortal.API.Controllers;
 public class CompanyController : ControllerBase
 {
     private readonly CompanyService _companyService;
+    private readonly AuthService _authService;
 
-    public CompanyController(CompanyService companyService)
+    public CompanyController(CompanyService companyService, AuthService authService)
     {
         _companyService = companyService;
+        _authService = authService;
     }
 
     private int GetUserId() =>
@@ -164,6 +166,42 @@ public class CompanyController : ControllerBase
         if (error is not null)
             return profile is null ? NotFound(new { message = error }) : BadRequest(new { message = error });
         return Ok(profile);
+    }
+
+    [HttpPost("{id:int}/dissociate")]
+    [Authorize(Roles = "admin")]
+    [ProducesResponseType(typeof(CompanyProfileDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DissociateUser(int id, [FromBody] AdminPasswordConfirmRequest request)
+    {
+        var adminId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        if (!await _authService.VerifyPasswordAsync(adminId, request.Password))
+            return Unauthorized(new { message = "Incorrect password" });
+
+        var (profile, error) = await _companyService.LinkUserAsync(id, null);
+        if (error is not null)
+            return profile is null ? NotFound(new { message = error }) : BadRequest(new { message = error });
+        return Ok(profile);
+    }
+
+    [HttpDelete("{id:int}")]
+    [Authorize(Roles = "admin")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Delete(int id, [FromBody] AdminPasswordConfirmRequest request)
+    {
+        var adminId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        if (!await _authService.VerifyPasswordAsync(adminId, request.Password))
+            return Unauthorized(new { message = "Incorrect password" });
+
+        var (success, error) = await _companyService.DeleteProfileAsync(id);
+        if (!success)
+            return error == "Company profile not found" ? NotFound(new { message = error }) : BadRequest(new { message = error });
+        return NoContent();
     }
 
     [HttpGet("{id:int}")]

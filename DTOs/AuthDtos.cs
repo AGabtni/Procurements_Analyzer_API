@@ -11,3 +11,5 @@ public record UserDto(int Id, string Email, string FullName, string Role, bool I
 public record UpdateSettingsRequest(string? Email, bool? NotificationsEnabled);
 
 public record SettingsDto(string Email, bool EmailConfirmed, bool NotificationsEnabled);
+
+public record AdminPasswordConfirmRequest(string Password);

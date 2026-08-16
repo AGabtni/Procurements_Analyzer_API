@@ -46,6 +46,12 @@ public class AuthService
         return (new AuthResponse(token, user.Email, user.FullName, user.Role, user.EmailConfirmed, user.NotificationsEnabled, user.ActivatedAt, TrialDays), null);
     }
 
+    public async Task<bool> VerifyPasswordAsync(int userId, string password)
+    {
+        var user = await _db.Users.FindAsync(userId);
+        return user is not null && BCrypt.Net.BCrypt.Verify(password, user.PasswordHash);
+    }
+
     public async Task<(UserDto? User, string? Error)> RegisterAsync(RegisterRequest request)
     {
         var email = request.Email.ToLower().Trim();
