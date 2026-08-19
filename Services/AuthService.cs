@@ -87,7 +87,7 @@ public class AuthService
                 u.EmailConfirmed, u.NotificationsEnabled,
                 u.CompanyProfile != null ? u.CompanyProfile.Id : (int?)null,
                 u.CompanyProfile != null ? u.CompanyProfile.CompanyName : null,
-                u.ActivatedAt, TrialDays
+                u.ActivatedAt, TrialDays, u.LastLogin
             ))
             .ToListAsync();
     }
@@ -100,7 +100,7 @@ public class AuthService
             .OrderBy(u => u.FullName)
             .Select(u => new UserDto(
                 u.Id, u.Email, u.FullName, u.Role, u.IsActive, u.CreatedAt,
-                u.EmailConfirmed, u.NotificationsEnabled, null, null, u.ActivatedAt, TrialDays
+                u.EmailConfirmed, u.NotificationsEnabled, null, null, u.ActivatedAt, TrialDays, u.LastLogin
             ))
             .ToListAsync();
     }
@@ -205,5 +205,5 @@ public class AuthService
 
     private UserDto ToDto(AppUser u) =>
         new(u.Id, u.Email, u.FullName, u.Role, u.IsActive, u.CreatedAt, u.EmailConfirmed, u.NotificationsEnabled,
-            u.CompanyProfile?.Id, u.CompanyProfile?.CompanyName, u.ActivatedAt, TrialDays);
+            u.CompanyProfile?.Id, u.CompanyProfile?.CompanyName, u.ActivatedAt, TrialDays, u.LastLogin);
 }
