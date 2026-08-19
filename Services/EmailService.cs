@@ -49,22 +49,22 @@ public class EmailService
     public async Task SendMatchNotificationAsync(
         string toEmail,
         string fullName,
+        string companyName,
         int newMatchCount,
         string dashboardUrl
     )
     {
+        var firstName = fullName.Split(' ')[0];
         var html = $"""
             <h2>New Tender Matches</h2>
-            <p>Hi {fullName},</p>
-            <p>You have <strong>{newMatchCount}</strong> new tender match{(
-                newMatchCount != 1 ? "es" : ""
-            )} on ProcurePortal.</p>
+            <p>Hi {firstName},</p>
+            <p><strong>{newMatchCount}</strong> new opportunit{(newMatchCount != 1 ? "ies were" : "y was")} found matching {companyName}'s profile on ProcurePortal.</p>
             <p><a href="{dashboardUrl}" style="display:inline-block;padding:12px 24px;background:#0d6efd;color:#fff;text-decoration:none;border-radius:6px;">View Matches</a></p>
             """;
 
         await SendEmailAsync(
             toEmail,
-            $"{newMatchCount} new tender match{(newMatchCount != 1 ? "es" : "")} — ProcurePortal",
+            $"{newMatchCount} new opportunit{(newMatchCount != 1 ? "ies" : "y")} matching {companyName}",
             html
         );
     }

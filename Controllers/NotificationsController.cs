@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ProcurePortal.API.Data;
@@ -60,7 +61,7 @@ public class NotificationsController : ControllerBase
         }
 
         var user = profile.User;
-
+        /*
         if (!user.EmailConfirmed)
         {
             _logger.LogInformation(
@@ -69,7 +70,7 @@ public class NotificationsController : ControllerBase
             );
             return Ok(new { message = "Email not confirmed" });
         }
-
+        */
         if (!user.NotificationsEnabled)
         {
             _logger.LogInformation(
@@ -89,6 +90,7 @@ public class NotificationsController : ControllerBase
             await _emailService.SendMatchNotificationAsync(
                 user.Email,
                 user.FullName,
+                profile.CompanyName,
                 request.NewMatchCount,
                 dashboardUrl
             );
@@ -106,6 +108,68 @@ public class NotificationsController : ControllerBase
                 ex,
                 "Failed to send match notification for company {CompanyId}",
                 request.CompanyId
+            );
+            return StatusCode(500, new { message = "Failed to send notification" });
+        }
+    }
+
+    /// <summary>
+    /// Admin manually sends a match notification to the user linked to a company.
+    /// Uses the count of matches with status 'new'. Bypasses email-confirmed and notifications-enabled guards.
+    /// </summary>
+    [Authorize(Roles = "admin")]
+    [HttpPost("send/{companyId:int}")]
+    public async Task<IActionResult> SendManual(int companyId)
+    {
+        var profile = await _db
+            .CompanyProfiles.Include(p => p.User)
+            .Include(p => p.Matches)
+            .FirstOrDefaultAsync(p => p.Id == companyId);
+
+        if (profile is null)
+            return NotFound(new { message = "Company not found" });
+
+        if (profile.User is null)
+            return BadRequest(new { message = "No user linked to this company" });
+
+        var newCount = profile.Matches.Count(m => m.Status == "new");
+        if (newCount == 0)
+            return BadRequest(new { message = "No new matches to notify about" });
+
+        var frontendUrl =
+            _config["App:FrontendUrl"]
+            ?? throw new InvalidOperationException("App:FrontendUrl must be configured");
+        var dashboardUrl = $"{frontendUrl}/my-company?tab=matches";
+
+        try
+        {
+            await _emailService.SendMatchNotificationAsync(
+                profile.User.Email,
+                profile.User.FullName,
+                profile.CompanyName,
+                newCount,
+                dashboardUrl
+            );
+            _logger.LogInformation(
+                "Manual notification sent by admin to {Email} for company {CompanyId} ({Count} new matches)",
+                profile.User.Email,
+                companyId,
+                newCount
+            );
+            return Ok(
+                new
+                {
+                    message = $"Notification sent ({newCount} new matches)",
+                    matchCount = newCount,
+                }
+            );
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Failed to send manual notification for company {CompanyId}",
+                companyId
             );
             return StatusCode(500, new { message = "Failed to send notification" });
         }

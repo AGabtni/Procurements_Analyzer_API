@@ -42,7 +42,7 @@ public class AppUser
     public string? EmailConfirmationToken { get; set; }
 
     [Column("notifications_enabled")]
-    public bool NotificationsEnabled { get; set; } = false;
+    public bool NotificationsEnabled { get; set; } = true;
 
     [Column("activated_at")]
     public DateTime? ActivatedAt { get; set; }
