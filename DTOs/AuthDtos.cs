@@ -13,3 +13,5 @@ public record UpdateSettingsRequest(string? Email, bool? NotificationsEnabled);
 public record SettingsDto(string Email, bool EmailConfirmed, bool NotificationsEnabled);
 
 public record AdminPasswordConfirmRequest(string Password);
+
+public record ChangePasswordRequest(string CurrentPassword, string NewPassword);

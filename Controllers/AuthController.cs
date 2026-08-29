@@ -126,6 +126,23 @@ public class AuthController : ControllerBase
         return Ok(settings);
     }
 
+    [Authorize]
+    [HttpPost("change-password")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.NewPassword) || request.NewPassword.Length < 8)
+            return BadRequest(new { message = "New password must be at least 8 characters" });
+
+        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        var error = await _authService.ChangePasswordAsync(userId, request.CurrentPassword, request.NewPassword);
+        if (error is not null)
+            return BadRequest(new { message = error });
+
+        return NoContent();
+    }
+
     // ── Admin-only: user management ──
 
     [Authorize(Roles = "admin")]

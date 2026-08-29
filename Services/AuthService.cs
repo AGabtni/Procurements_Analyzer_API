@@ -178,6 +178,21 @@ public class AuthService
         return (new SettingsDto(user.Email, user.EmailConfirmed, user.NotificationsEnabled), null);
     }
 
+    public async Task<string?> ChangePasswordAsync(int userId, string currentPassword, string newPassword)
+    {
+        var user = await _db.Users.FindAsync(userId);
+        if (user is null) return "User not found";
+        if (!BCrypt.Net.BCrypt.Verify(currentPassword, user.PasswordHash))
+            return "Current password is incorrect";
+
+        if (BCrypt.Net.BCrypt.Verify(newPassword, user.PasswordHash))
+            return "New password must be different from your current password";
+
+        user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
+        await _db.SaveChangesAsync();
+        return null;
+    }
+
     private string GenerateToken(AppUser user)
     {
         var key = new SymmetricSecurityKey(
