@@ -149,9 +149,9 @@ public class CompanyController : ControllerBase
         {
             var existing = await _companyService.GetProfileByUserIdAsync(request.UserId.Value);
             if (existing is not null)
-                return BadRequest(new { message = "This user already has a company profile" });
+                return BadRequest(new { message = "This user is already linked to a company" });
         }
-        var profile = await _companyService.CreateProfileAsync(request, request.UserId);
+        var profile = await _companyService.AdminCreateProfileAsync(request);
         return Created("", profile);
     }
 
@@ -162,25 +162,27 @@ public class CompanyController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> LinkUser(int id, [FromBody] LinkUserRequest request)
     {
-        var (profile, error) = await _companyService.LinkUserAsync(id, request.UserId);
+        if (!request.UserId.HasValue)
+            return BadRequest(new { message = "UserId is required" });
+        var (profile, error) = await _companyService.LinkUserAsync(id, request.UserId.Value);
         if (error is not null)
             return profile is null ? NotFound(new { message = error }) : BadRequest(new { message = error });
         return Ok(profile);
     }
 
-    [HttpPost("{id:int}/dissociate")]
+    [HttpPost("{id:int}/dissociate/{userId:int}")]
     [Authorize(Roles = "admin")]
     [ProducesResponseType(typeof(CompanyProfileDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> DissociateUser(int id, [FromBody] AdminPasswordConfirmRequest request)
+    public async Task<IActionResult> DissociateUser(int id, int userId, [FromBody] AdminPasswordConfirmRequest request)
     {
         var adminId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         if (!await _authService.VerifyPasswordAsync(adminId, request.Password))
             return Unauthorized(new { message = "Incorrect password" });
 
-        var (profile, error) = await _companyService.LinkUserAsync(id, null);
+        var (profile, error) = await _companyService.DissociateUserAsync(id, userId);
         if (error is not null)
             return profile is null ? NotFound(new { message = error }) : BadRequest(new { message = error });
         return Ok(profile);

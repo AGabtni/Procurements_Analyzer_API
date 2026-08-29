@@ -4,12 +4,12 @@ namespace ProcurePortal.API.DTOs;
 
 // ── Response DTOs ──
 
+public record CompanyUserDto(int Id, string FullName, string Email);
+
 public class CompanyProfileDto
 {
     public int Id { get; set; }
-    public int? UserId { get; set; }
-    public string? OwnerName { get; set; }
-    public string? OwnerEmail { get; set; }
+    public CompanyUserDto[] Users { get; set; } = [];
     public string CompanyName { get; set; } = string.Empty;
     public string? Province { get; set; }
     public string? ServicesDescription { get; set; }

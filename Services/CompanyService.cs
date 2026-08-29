@@ -19,7 +19,7 @@ public class CompanyService
     {
         var profiles = await _db.CompanyProfiles
             .Include(p => p.Preferences)
-            .Include(p => p.User)
+            .Include(p => p.Users)
             .ToListAsync();
 
         var labelMap = await BuildLabelMapAsync(
@@ -32,7 +32,7 @@ public class CompanyService
     {
         var profile = await _db.CompanyProfiles
             .Include(p => p.Preferences)
-            .Include(p => p.User)
+            .Include(p => p.Users)
             .FirstOrDefaultAsync(p => p.Id == id);
 
         if (profile is null) return null;
@@ -44,8 +44,8 @@ public class CompanyService
     {
         var profile = await _db.CompanyProfiles
             .Include(p => p.Preferences)
-            .Include(p => p.User)
-            .FirstOrDefaultAsync(p => p.UserId == userId);
+            .Include(p => p.Users)
+            .FirstOrDefaultAsync(p => p.Users.Any(u => u.Id == userId));
 
         if (profile is null) return null;
         var labelMap = await BuildLabelMapAsync(profile.IndustryCodes ?? []);
@@ -75,7 +75,6 @@ public class CompanyService
             CompanySize = request.CompanySize,
             CommodityTypes = request.CommodityTypes,
             IndustryCodes = request.IndustryCodes,
-            UserId = userId,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow,
         };
@@ -83,46 +82,30 @@ public class CompanyService
         _db.CompanyProfiles.Add(profile);
         await _db.SaveChangesAsync();
 
+        if (userId.HasValue)
+        {
+            var user = await _db.Users.FindAsync(userId.Value);
+            if (user is not null)
+            {
+                user.CompanyId = profile.Id;
+                await _db.SaveChangesAsync();
+            }
+        }
+
         if (request.Preferences is not null)
         {
             await UpsertPreferencesAsync(profile.Id, request.Preferences);
             await _db.Entry(profile).Reference(p => p.Preferences).LoadAsync();
         }
 
+        await _db.Entry(profile).Collection(p => p.Users).LoadAsync();
         var labelMap = await BuildLabelMapAsync(profile.IndustryCodes ?? []);
         return MapToDto(profile, labelMap);
     }
 
     public async Task<CompanyProfileDto> AdminCreateProfileAsync(AdminCreateCompanyRequest request)
     {
-        var profile = new CompanyProfile
-        {
-            CompanyName = request.CompanyName,
-            Province = request.Province,
-            ServicesDescription = request.ServicesDescription,
-            Keywords = request.Keywords,
-            UnspscCodes = request.UnspscCodes,
-            GsinCodes = request.GsinCodes,
-            Certifications = request.Certifications,
-            CompanySize = request.CompanySize,
-            CommodityTypes = request.CommodityTypes,
-            IndustryCodes = request.IndustryCodes,
-            UserId = request.UserId,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow,
-        };
-
-        _db.CompanyProfiles.Add(profile);
-        await _db.SaveChangesAsync();
-
-        if (request.Preferences is not null)
-        {
-            await UpsertPreferencesAsync(profile.Id, request.Preferences);
-            await _db.Entry(profile).Reference(p => p.Preferences).LoadAsync();
-        }
-
-        var labelMap = await BuildLabelMapAsync(profile.IndustryCodes ?? []);
-        return MapToDto(profile, labelMap);
+        return await CreateProfileAsync(request, request.UserId);
     }
 
     public async Task<CompanyProfileDto?> UpdateProfileAsync(
@@ -175,10 +158,11 @@ public class CompanyService
         var profile = await _db.CompanyProfiles
             .Include(p => p.Preferences)
             .Include(p => p.Matches)
+            .Include(p => p.Users)
             .FirstOrDefaultAsync(p => p.Id == id);
 
         if (profile is null) return (false, "Company profile not found");
-        if (profile.UserId.HasValue) return (false, "Dissociate the company from its user before deleting");
+        if (profile.Users.Any()) return (false, "Dissociate all users from this company before deleting");
 
         if (profile.Preferences is not null) _db.CompanyPreferences.Remove(profile.Preferences);
         _db.CompanyMatches.RemoveRange(profile.Matches);
@@ -187,25 +171,37 @@ public class CompanyService
         return (true, null);
     }
 
-    public async Task<(CompanyProfileDto? Profile, string? Error)> LinkUserAsync(int companyId, int? userId)
+    public async Task<(CompanyProfileDto? Profile, string? Error)> LinkUserAsync(int companyId, int userId)
     {
-        var profile = await _db.CompanyProfiles.Include(p => p.Preferences).Include(p => p.User)
+        var profile = await _db.CompanyProfiles.Include(p => p.Preferences).Include(p => p.Users)
             .FirstOrDefaultAsync(p => p.Id == companyId);
         if (profile is null) return (null, "Company profile not found");
 
-        if (userId.HasValue)
-        {
-            var existing = await _db.CompanyProfiles.AnyAsync(p => p.UserId == userId && p.Id != companyId);
-            if (existing) return (null, "This user is already linked to another company");
-        }
+        var user = await _db.Users.FindAsync(userId);
+        if (user is null) return (null, "User not found");
 
-        profile.UserId = userId;
+        if (user.CompanyId.HasValue && user.CompanyId != companyId)
+            return (null, "This user is already linked to another company");
+
+        user.CompanyId = companyId;
         profile.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
 
-        await _db.Entry(profile).Reference(p => p.User).LoadAsync();
+        await _db.Entry(profile).Collection(p => p.Users).LoadAsync();
         var labelMap = await BuildLabelMapAsync(profile.IndustryCodes ?? []);
         return (MapToDto(profile, labelMap), null);
+    }
+
+    public async Task<(CompanyProfileDto? Profile, string? Error)> DissociateUserAsync(int companyId, int userId)
+    {
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Id == userId && u.CompanyId == companyId);
+        if (user is null) return (null, "User not found or not linked to this company");
+
+        user.CompanyId = null;
+        await _db.SaveChangesAsync();
+
+        var profile = await GetProfileByIdAsync(companyId);
+        return (profile, null);
     }
 
     // ── Preferences CRUD ──
@@ -387,9 +383,7 @@ public class CompanyService
         new()
         {
             Id = p.Id,
-            UserId = p.UserId,
-            OwnerName = p.User?.FullName,
-            OwnerEmail = p.User?.Email,
+            Users = p.Users.Select(u => new CompanyUserDto(u.Id, u.FullName, u.Email)).ToArray(),
             CompanyName = p.CompanyName,
             Province = p.Province,
             ServicesDescription = p.ServicesDescription,

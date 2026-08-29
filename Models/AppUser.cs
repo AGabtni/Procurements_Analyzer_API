@@ -47,5 +47,7 @@ public class AppUser
     [Column("activated_at")]
     public DateTime? ActivatedAt { get; set; }
 
+    [Column("company_id")]
+    public int? CompanyId { get; set; }
     public CompanyProfile? CompanyProfile { get; set; }
 }

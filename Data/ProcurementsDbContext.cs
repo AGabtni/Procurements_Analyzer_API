@@ -61,8 +61,9 @@ public class ProcurementsDbContext : DbContext
             entity.HasIndex(e => e.Email).IsUnique();
 
             entity.HasOne(e => e.CompanyProfile)
-                .WithOne(p => p.User)
-                .HasForeignKey<CompanyProfile>(p => p.UserId);
+                .WithMany(p => p.Users)
+                .HasForeignKey(e => e.CompanyId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<Industry>(entity =>

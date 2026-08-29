@@ -96,7 +96,7 @@ public class AuthService
     {
         return await _db.Users
             .Include(u => u.CompanyProfile)
-            .Where(u => u.CompanyProfile == null && u.IsActive)
+            .Where(u => u.CompanyId == null && u.IsActive)
             .OrderBy(u => u.FullName)
             .Select(u => new UserDto(
                 u.Id, u.Email, u.FullName, u.Role, u.IsActive, u.CreatedAt,
