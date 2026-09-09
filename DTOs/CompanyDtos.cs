@@ -58,6 +58,8 @@ public class CompanyMatchDto
     public string Status { get; set; } = "new";
 }
 
+public record MatchFiltersDto(string[] Organizations, string[] NoticeTypes);
+
 public class MatchStatsDto
 {
     public int TotalMatches { get; set; }

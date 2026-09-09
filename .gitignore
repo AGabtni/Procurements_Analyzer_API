@@ -13,7 +13,7 @@ obj/
 .vscode/
 
 # Secrets — NEVER commit
-appsettings.Development.json
+appsettings.*.json
 
 # OS
 Thumbs.db

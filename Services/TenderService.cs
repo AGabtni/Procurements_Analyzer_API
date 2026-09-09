@@ -30,7 +30,7 @@ public class TenderService
         // Filter: keyword search (title or organization)
         if (!string.IsNullOrWhiteSpace(searchParams.Keyword))
         {
-            var kw = searchParams.Keyword.ToLower();
+            var kw = searchParams.Keyword.Trim().ToLower();
             query = query.Where(t =>
                 (t.Title != null && t.Title.ToLower().Contains(kw))
                 || (t.BuyingOrganization != null && t.BuyingOrganization.ToLower().Contains(kw))

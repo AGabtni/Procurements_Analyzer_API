@@ -256,18 +256,35 @@ public class CompanyService
     // ── Matches read (for a company) ──
     public async Task<PagedResult<CompanyMatchDto>> GetMatchesAsync(
         int companyId,
-        string? status = null,
+        string[]? statuses = null,
+        string? search = null,
+        string[]? organizations = null,
+        string[]? noticeTypes = null,
         int page = 1,
         int pageSize = 25
     )
     {
         var query = _db.CompanyMatches.Include(m => m.Tender).Where(m => m.CompanyId == companyId);
 
-        if (!string.IsNullOrWhiteSpace(status))
-            query = query.Where(m => m.Status == status);
+        if (statuses is { Length: > 0 })
+            query = query.Where(m => statuses.Contains(m.Status));
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var s = search.Trim().ToLower();
+            query = query.Where(m =>
+                (m.Tender.Title != null && m.Tender.Title.ToLower().Contains(s)) ||
+                (m.Tender.NoticeId != null && m.Tender.NoticeId.ToLower().Contains(s)));
+        }
+
+        if (organizations is { Length: > 0 })
+            query = query.Where(m => m.Tender.BuyingOrganization != null && organizations.Contains(m.Tender.BuyingOrganization));
+
+        if (noticeTypes is { Length: > 0 })
+            query = query.Where(m => m.Tender.NoticeType != null && noticeTypes.Contains(m.Tender.NoticeType));
 
         var totalCount = await query.CountAsync();
-        var clampedPageSize = Math.Clamp(pageSize, 1, 100);
+        var clampedPageSize = Math.Clamp(pageSize, 1, 1000);
         var clampedPage = Math.Max(page, 1);
 
         var items = await query
@@ -321,6 +338,23 @@ public class CompanyService
                 matches.Count > 0 ? Math.Round(matches.Average(m => m.MatchScore), 1) : 0,
             HighScoreCount = matches.Count(m => m.MatchScore >= 70),
         };
+    }
+
+    public async Task<MatchFiltersDto> GetMatchFiltersAsync(int companyId)
+    {
+        var base_q = _db.CompanyMatches.Include(m => m.Tender).Where(m => m.CompanyId == companyId);
+
+        var orgs = await base_q
+            .Where(m => m.Tender.BuyingOrganization != null)
+            .Select(m => m.Tender.BuyingOrganization!)
+            .Distinct().OrderBy(o => o).ToListAsync();
+
+        var types = await base_q
+            .Where(m => m.Tender.NoticeType != null)
+            .Select(m => m.Tender.NoticeType!)
+            .Distinct().OrderBy(t => t).ToListAsync();
+
+        return new MatchFiltersDto(orgs.ToArray(), types.ToArray());
     }
 
     // ── Matching trigger ──

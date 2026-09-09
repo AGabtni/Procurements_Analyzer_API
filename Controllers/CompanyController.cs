@@ -86,12 +86,21 @@ public class CompanyController : ControllerBase
 
     [HttpGet("me/matches")]
     [ProducesResponseType(typeof(PagedResult<CompanyMatchDto>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetMyMatches([FromQuery] string? status, [FromQuery] int page = 1, [FromQuery] int pageSize = 25)
+    public async Task<IActionResult> GetMyMatches([FromQuery] string[]? statuses, [FromQuery] string? search, [FromQuery] string[]? organizations, [FromQuery] string[]? noticeTypes, [FromQuery] int page = 1, [FromQuery] int pageSize = 25)
     {
         var profile = await _companyService.GetProfileByUserIdAsync(GetUserId());
         if (profile is null) return NotFound();
-        var matches = await _companyService.GetMatchesAsync(profile.Id, status, page, pageSize);
+        var matches = await _companyService.GetMatchesAsync(profile.Id, statuses, search, organizations, noticeTypes, page, pageSize);
         return Ok(matches);
+    }
+
+    [HttpGet("me/matches/filters")]
+    [ProducesResponseType(typeof(MatchFiltersDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetMyMatchFilters()
+    {
+        var profile = await _companyService.GetProfileByUserIdAsync(GetUserId());
+        if (profile is null) return NotFound();
+        return Ok(await _companyService.GetMatchFiltersAsync(profile.Id));
     }
 
     [HttpGet("me/matches/stats")]
@@ -251,10 +260,18 @@ public class CompanyController : ControllerBase
     [HttpGet("{id:int}/matches")]
     [Authorize(Roles = "admin")]
     [ProducesResponseType(typeof(PagedResult<CompanyMatchDto>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetMatches(int id, [FromQuery] string? status, [FromQuery] int page = 1, [FromQuery] int pageSize = 25)
+    public async Task<IActionResult> GetMatches(int id, [FromQuery] string[]? statuses, [FromQuery] string? search, [FromQuery] string[]? organizations, [FromQuery] string[]? noticeTypes, [FromQuery] int page = 1, [FromQuery] int pageSize = 25)
     {
-        var matches = await _companyService.GetMatchesAsync(id, status, page, pageSize);
+        var matches = await _companyService.GetMatchesAsync(id, statuses, search, organizations, noticeTypes, page, pageSize);
         return Ok(matches);
+    }
+
+    [HttpGet("{id:int}/matches/filters")]
+    [Authorize(Roles = "admin")]
+    [ProducesResponseType(typeof(MatchFiltersDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetMatchFilters(int id)
+    {
+        return Ok(await _companyService.GetMatchFiltersAsync(id));
     }
 
     [HttpGet("{id:int}/matches/stats")]
