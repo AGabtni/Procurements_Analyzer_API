@@ -8,10 +8,44 @@ namespace ProcurePortal.API.Services;
 public class CompanyService
 {
     private readonly ProcurementsDbContext _db;
+    private readonly int _trialDays;
 
-    public CompanyService(ProcurementsDbContext db)
+    public CompanyService(ProcurementsDbContext db, IConfiguration config)
     {
         _db = db;
+        _trialDays = int.TryParse(config["App:TrialDays"], out var d) ? d : 14;
+    }
+
+    // ── Subscription access ──
+
+    /// Effective status, computing trial expiry on read (no cron needed).
+    public static string EffectiveStatus(CompanyProfile c)
+    {
+        if (c.SubscriptionStatus == "active") return "active";
+        if (c.SubscriptionStatus == "expired") return "expired";
+        if (c.TrialEndsAt.HasValue && c.TrialEndsAt.Value < DateTime.UtcNow) return "expired";
+        return "trialing";
+    }
+
+    public record MatchAccess(int CompanyId, string Status, bool CanSeeFull);
+
+    /// Resolves whether a user may see full match payloads:
+    /// trialing → yes; active → only seated users; expired → counts only.
+    public async Task<MatchAccess?> GetMatchAccessAsync(int userId)
+    {
+        var user = await _db.Users
+            .Include(u => u.CompanyProfile)
+            .FirstOrDefaultAsync(u => u.Id == userId);
+        if (user?.CompanyProfile is null) return null;
+
+        var status = EffectiveStatus(user.CompanyProfile);
+        var canSeeFull = status switch
+        {
+            "trialing" => true,
+            "active" => user.HasSeat,
+            _ => false,
+        };
+        return new MatchAccess(user.CompanyProfile.Id, status, canSeeFull);
     }
 
     // ── Profile CRUD ──
@@ -63,6 +97,9 @@ public class CompanyService
 
     public async Task<CompanyProfileDto> CreateProfileAsync(CreateCompanyProfileRequest request, int? userId = null)
     {
+        // Trial clock is company-level: starts at company creation + TrialDays.
+        var creator = userId.HasValue ? await _db.Users.FindAsync(userId.Value) : null;
+
         var profile = new CompanyProfile
         {
             CompanyName = request.CompanyName,
@@ -77,19 +114,17 @@ public class CompanyService
             IndustryCodes = request.IndustryCodes,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow,
+            SubscriptionStatus = "trialing",
+            TrialEndsAt = DateTime.UtcNow.AddDays(_trialDays),
         };
 
         _db.CompanyProfiles.Add(profile);
         await _db.SaveChangesAsync();
 
-        if (userId.HasValue)
+        if (creator is not null)
         {
-            var user = await _db.Users.FindAsync(userId.Value);
-            if (user is not null)
-            {
-                user.CompanyId = profile.Id;
-                await _db.SaveChangesAsync();
-            }
+            creator.CompanyId = profile.Id;
+            await _db.SaveChangesAsync();
         }
 
         if (request.Preferences is not null)
@@ -417,7 +452,7 @@ public class CompanyService
         new()
         {
             Id = p.Id,
-            Users = p.Users.Select(u => new CompanyUserDto(u.Id, u.FullName, u.Email)).ToArray(),
+            Users = p.Users.Select(u => new CompanyUserDto(u.Id, u.FullName, u.Email, u.HasSeat)).ToArray(),
             CompanyName = p.CompanyName,
             Province = p.Province,
             ServicesDescription = p.ServicesDescription,
@@ -431,6 +466,9 @@ public class CompanyService
             LastMatchedAt = p.LastMatchedAt,
             MatchingStatus = p.MatchingStatus ?? "idle",
             MatchingStartedAt = p.MatchingStartedAt,
+            SubscriptionStatus = EffectiveStatus(p),
+            TrialEndsAt = p.TrialEndsAt,
+            MaxSeats = p.MaxSeats,
             CommodityTypes = p.CommodityTypes ?? [],
             AutoKeywords = p.AutoKeywords,
             IndustryCodes = p.IndustryCodes ?? [],

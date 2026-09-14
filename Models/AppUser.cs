@@ -50,4 +50,7 @@ public class AppUser
     [Column("company_id")]
     public int? CompanyId { get; set; }
     public CompanyProfile? CompanyProfile { get; set; }
+
+    [Column("has_seat")]
+    public bool HasSeat { get; set; } = false;
 }

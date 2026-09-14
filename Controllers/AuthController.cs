@@ -48,7 +48,7 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> Me()
     {
         var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-        var (activatedAt, trialDays) = await _authService.GetSessionMetaAsync(userId);
+        var (activatedAt, trialDays, subscriptionStatus, trialEndsAt, companyId) = await _authService.GetSessionMetaAsync(userId);
         return Ok(new
         {
             id = userId,
@@ -57,6 +57,9 @@ public class AuthController : ControllerBase
             role = User.FindFirst(ClaimTypes.Role)?.Value,
             activatedAt,
             trialDays,
+            subscriptionStatus,
+            trialEndsAt,
+            companyId,
         });
     }
 

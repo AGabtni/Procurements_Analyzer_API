@@ -14,13 +14,18 @@ public class AuthService
     private readonly ProcurementsDbContext _db;
     private readonly IConfiguration _config;
 
-    public int TrialDays => int.TryParse(_config["App:TrialDays"], out var d) ? d : 7;
+    public int TrialDays => int.TryParse(_config["App:TrialDays"], out var d) ? d : 14;
 
-    public async Task<(DateTime? ActivatedAt, int TrialDays)> GetSessionMetaAsync(int userId)
+    public async Task<(DateTime? ActivatedAt, int TrialDays, string? SubscriptionStatus, DateTime? TrialEndsAt, int? CompanyId)> GetSessionMetaAsync(int userId)
     {
-        var user = await _db.Users.FindAsync(userId);
-        return (user?.ActivatedAt, TrialDays);
+        var user = await _db.Users
+            .Include(u => u.CompanyProfile)
+            .FirstOrDefaultAsync(u => u.Id == userId);
+        return (user?.ActivatedAt, TrialDays, SubscriptionStatusOf(user), user?.CompanyProfile?.TrialEndsAt, user?.CompanyId);
     }
+
+    private static string? SubscriptionStatusOf(AppUser? user) =>
+        user?.CompanyProfile is null ? null : CompanyService.EffectiveStatus(user.CompanyProfile);
 
     public AuthService(ProcurementsDbContext db, IConfiguration config)
     {
@@ -31,6 +36,7 @@ public class AuthService
     public async Task<(AuthResponse? Response, string? Error)> LoginAsync(LoginRequest request)
     {
         var user = await _db.Users
+            .Include(u => u.CompanyProfile)
             .FirstOrDefaultAsync(u => u.Email == request.Email.ToLower().Trim());
 
         if (user is null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
@@ -43,7 +49,7 @@ public class AuthService
         await _db.SaveChangesAsync();
 
         var token = GenerateToken(user);
-        return (new AuthResponse(token, user.Email, user.FullName, user.Role, user.EmailConfirmed, user.NotificationsEnabled, user.ActivatedAt, TrialDays), null);
+        return (new AuthResponse(token, user.Email, user.FullName, user.Role, user.EmailConfirmed, user.NotificationsEnabled, user.ActivatedAt, TrialDays, SubscriptionStatusOf(user), user.CompanyProfile?.TrialEndsAt, user.CompanyId), null);
     }
 
     public async Task<bool> VerifyPasswordAsync(int userId, string password)

@@ -50,6 +50,16 @@ public class CompanyProfile
     [Column("matching_started_at")]
     public DateTime? MatchingStartedAt { get; set; }
 
+    // ── Billing / subscription ──
+    [Column("subscription_status")]
+    public string SubscriptionStatus { get; set; } = "trialing";
+
+    [Column("trial_ends_at")]
+    public DateTime? TrialEndsAt { get; set; }
+
+    [Column("max_seats")]
+    public int MaxSeats { get; set; } = 1;
+
     public CompanyPreferences? Preferences { get; set; }
 
     [Column("commodity_types")]

@@ -4,7 +4,7 @@ namespace ProcurePortal.API.DTOs;
 
 // ── Response DTOs ──
 
-public record CompanyUserDto(int Id, string FullName, string Email);
+public record CompanyUserDto(int Id, string FullName, string Email, bool HasSeat);
 
 public class CompanyProfileDto
 {
@@ -23,6 +23,10 @@ public class CompanyProfileDto
     public DateTime? LastMatchedAt { get; set; }
     public string MatchingStatus { get; set; } = "idle";
     public DateTime? MatchingStartedAt { get; set; }
+    // Billing (subscriptionStatus is the COMPUTED effective status, not the raw column)
+    public string SubscriptionStatus { get; set; } = "trialing";
+    public DateTime? TrialEndsAt { get; set; }
+    public int MaxSeats { get; set; } = 1;
     public string[] CommodityTypes { get; set; } = [];
     public string[]? AutoKeywords { get; set; }
     public string[] IndustryCodes { get; set; } = [];

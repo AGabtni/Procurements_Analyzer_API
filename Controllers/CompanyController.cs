@@ -88,9 +88,12 @@ public class CompanyController : ControllerBase
     [ProducesResponseType(typeof(PagedResult<CompanyMatchDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetMyMatches([FromQuery] string[]? statuses, [FromQuery] string? search, [FromQuery] string[]? organizations, [FromQuery] string[]? noticeTypes, [FromQuery] int page = 1, [FromQuery] int pageSize = 25)
     {
-        var profile = await _companyService.GetProfileByUserIdAsync(GetUserId());
-        if (profile is null) return NotFound();
-        var matches = await _companyService.GetMatchesAsync(profile.Id, statuses, search, organizations, noticeTypes, page, pageSize);
+        var access = await _companyService.GetMatchAccessAsync(GetUserId());
+        if (access is null) return NotFound();
+        // Locked (expired trial / unpaid seat): never leak tender payloads. Counts come from /stats.
+        if (!access.CanSeeFull)
+            return Ok(new PagedResult<CompanyMatchDto> { Items = [], TotalCount = 0, Page = 1, PageSize = pageSize });
+        var matches = await _companyService.GetMatchesAsync(access.CompanyId, statuses, search, organizations, noticeTypes, page, pageSize);
         return Ok(matches);
     }
 
@@ -98,9 +101,12 @@ public class CompanyController : ControllerBase
     [ProducesResponseType(typeof(MatchFiltersDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetMyMatchFilters()
     {
-        var profile = await _companyService.GetProfileByUserIdAsync(GetUserId());
-        if (profile is null) return NotFound();
-        return Ok(await _companyService.GetMatchFiltersAsync(profile.Id));
+        var access = await _companyService.GetMatchAccessAsync(GetUserId());
+        if (access is null) return NotFound();
+        // Org/notice-type filter values expose buyer names — locked accounts get nothing.
+        if (!access.CanSeeFull)
+            return Ok(new MatchFiltersDto([], []));
+        return Ok(await _companyService.GetMatchFiltersAsync(access.CompanyId));
     }
 
     [HttpGet("me/matches/stats")]
@@ -127,14 +133,19 @@ public class CompanyController : ControllerBase
 
     [HttpPost("me/match")]
     [ProducesResponseType(StatusCodes.Status202Accepted)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> TriggerMyMatch()
     {
-        var profile = await _companyService.GetProfileByUserIdAsync(GetUserId());
-        if (profile is null) return NotFound();
-        return await HandleTrigger(profile.Id, false);
+        var access = await _companyService.GetMatchAccessAsync(GetUserId());
+        if (access is null) return NotFound();
+        // Expired trial: block matching entirely — it consumes LLM budget for a locked account.
+        if (access.Status == "expired")
+            return StatusCode(StatusCodes.Status403Forbidden,
+                new { message = "Your trial has ended. Subscribe to run matching." });
+        return await HandleTrigger(access.CompanyId, false);
     }
 
     // ── Admin: All Profiles ──
