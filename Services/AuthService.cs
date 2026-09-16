@@ -11,26 +11,51 @@ namespace ProcurePortal.API.Services;
 
 public class AuthService
 {
+    private static readonly string[] SupportedLocales = { "en-CA", "fr-CA" };
+    private const string DefaultLocale = "en-CA";
+
     private readonly ProcurementsDbContext _db;
     private readonly IConfiguration _config;
+    private readonly IHttpContextAccessor _httpContextAccessor;
 
     public int TrialDays => int.TryParse(_config["App:TrialDays"], out var d) ? d : 14;
 
-    public async Task<(DateTime? ActivatedAt, int TrialDays, string? SubscriptionStatus, DateTime? TrialEndsAt, int? CompanyId)> GetSessionMetaAsync(int userId)
+    public async Task<(DateTime? ActivatedAt, int TrialDays, string? SubscriptionStatus, DateTime? TrialEndsAt, int? CompanyId, string Locale, string CommsLocale)> GetSessionMetaAsync(int userId)
     {
         var user = await _db.Users
             .Include(u => u.CompanyProfile)
             .FirstOrDefaultAsync(u => u.Id == userId);
-        return (user?.ActivatedAt, TrialDays, SubscriptionStatusOf(user), user?.CompanyProfile?.TrialEndsAt, user?.CompanyId);
+        return (
+            user?.ActivatedAt,
+            TrialDays,
+            SubscriptionStatusOf(user),
+            user?.CompanyProfile?.TrialEndsAt,
+            user?.CompanyId,
+            user?.Locale ?? DefaultLocale,
+            user?.CommsLocale ?? DefaultLocale
+        );
     }
 
     private static string? SubscriptionStatusOf(AppUser? user) =>
         user?.CompanyProfile is null ? null : CompanyService.EffectiveStatus(user.CompanyProfile);
 
-    public AuthService(ProcurementsDbContext db, IConfiguration config)
+    private static bool IsSupportedLocale(string? locale) =>
+        locale is not null && Array.IndexOf(SupportedLocales, locale) >= 0;
+
+    // Reads Accept-Language and returns 'fr-CA' if the top preference starts with 'fr', else 'en-CA'.
+    private string InferLocaleFromRequest()
+    {
+        var header = _httpContextAccessor.HttpContext?.Request.Headers.AcceptLanguage.ToString();
+        if (string.IsNullOrWhiteSpace(header)) return DefaultLocale;
+        var first = header.Split(',')[0].Split(';')[0].Trim();
+        return first.StartsWith("fr", StringComparison.OrdinalIgnoreCase) ? "fr-CA" : DefaultLocale;
+    }
+
+    public AuthService(ProcurementsDbContext db, IConfiguration config, IHttpContextAccessor httpContextAccessor)
     {
         _db = db;
         _config = config;
+        _httpContextAccessor = httpContextAccessor;
     }
 
     public async Task<(AuthResponse? Response, string? Error)> LoginAsync(LoginRequest request)
@@ -49,7 +74,7 @@ public class AuthService
         await _db.SaveChangesAsync();
 
         var token = GenerateToken(user);
-        return (new AuthResponse(token, user.Email, user.FullName, user.Role, user.EmailConfirmed, user.NotificationsEnabled, user.ActivatedAt, TrialDays, SubscriptionStatusOf(user), user.CompanyProfile?.TrialEndsAt, user.CompanyId), null);
+        return (new AuthResponse(token, user.Email, user.FullName, user.Role, user.EmailConfirmed, user.NotificationsEnabled, user.ActivatedAt, TrialDays, SubscriptionStatusOf(user), user.CompanyProfile?.TrialEndsAt, user.CompanyId, user.Locale, user.CommsLocale), null);
     }
 
     public async Task<bool> VerifyPasswordAsync(int userId, string password)
@@ -68,6 +93,7 @@ public class AuthService
         if (request.Password.Length < 8)
             return (null, "Password must be at least 8 characters");
 
+        var inferredLocale = InferLocaleFromRequest();
         var user = new AppUser
         {
             Email = email,
@@ -75,6 +101,8 @@ public class AuthService
             FullName = request.FullName.Trim(),
             Role = "user",
             IsActive = false,
+            Locale = inferredLocale,
+            CommsLocale = inferredLocale,
         };
 
         _db.Users.Add(user);
@@ -93,7 +121,7 @@ public class AuthService
                 u.EmailConfirmed, u.NotificationsEnabled,
                 u.CompanyProfile != null ? u.CompanyProfile.Id : (int?)null,
                 u.CompanyProfile != null ? u.CompanyProfile.CompanyName : null,
-                u.ActivatedAt, TrialDays, u.LastLogin
+                u.ActivatedAt, TrialDays, u.LastLogin, u.Locale, u.CommsLocale
             ))
             .ToListAsync();
     }
@@ -106,9 +134,35 @@ public class AuthService
             .OrderBy(u => u.FullName)
             .Select(u => new UserDto(
                 u.Id, u.Email, u.FullName, u.Role, u.IsActive, u.CreatedAt,
-                u.EmailConfirmed, u.NotificationsEnabled, null, null, u.ActivatedAt, TrialDays, u.LastLogin
+                u.EmailConfirmed, u.NotificationsEnabled, null, null, u.ActivatedAt, TrialDays, u.LastLogin, u.Locale, u.CommsLocale
             ))
             .ToListAsync();
+    }
+
+    public async Task<(bool Found, string? Locale, string? Error)> UpdateLocaleAsync(int userId, string locale)
+    {
+        if (!IsSupportedLocale(locale))
+            return (false, null, "Unsupported locale");
+
+        var user = await _db.Users.FindAsync(userId);
+        if (user is null) return (false, null, "User not found");
+
+        user.Locale = locale;
+        await _db.SaveChangesAsync();
+        return (true, user.Locale, null);
+    }
+
+    public async Task<(bool Found, string? CommsLocale, string? Error)> UpdateCommsLocaleAsync(int userId, string commsLocale)
+    {
+        if (!IsSupportedLocale(commsLocale))
+            return (false, null, "Unsupported locale");
+
+        var user = await _db.Users.FindAsync(userId);
+        if (user is null) return (false, null, "User not found");
+
+        user.CommsLocale = commsLocale;
+        await _db.SaveChangesAsync();
+        return (true, user.CommsLocale, null);
     }
 
     public async Task<(bool Found, DateTime? ActivatedAt)> SetActiveAsync(int userId, bool active)
@@ -226,5 +280,5 @@ public class AuthService
 
     private UserDto ToDto(AppUser u) =>
         new(u.Id, u.Email, u.FullName, u.Role, u.IsActive, u.CreatedAt, u.EmailConfirmed, u.NotificationsEnabled,
-            u.CompanyProfile?.Id, u.CompanyProfile?.CompanyName, u.ActivatedAt, TrialDays, u.LastLogin);
+            u.CompanyProfile?.Id, u.CompanyProfile?.CompanyName, u.ActivatedAt, TrialDays, u.LastLogin, u.Locale, u.CommsLocale);
 }

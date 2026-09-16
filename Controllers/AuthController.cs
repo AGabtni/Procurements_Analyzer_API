@@ -48,7 +48,7 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> Me()
     {
         var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-        var (activatedAt, trialDays, subscriptionStatus, trialEndsAt, companyId) = await _authService.GetSessionMetaAsync(userId);
+        var (activatedAt, trialDays, subscriptionStatus, trialEndsAt, companyId, locale, commsLocale) = await _authService.GetSessionMetaAsync(userId);
         return Ok(new
         {
             id = userId,
@@ -60,7 +60,33 @@ public class AuthController : ControllerBase
             subscriptionStatus,
             trialEndsAt,
             companyId,
+            locale,
+            commsLocale,
         });
+    }
+
+    [Authorize]
+    [HttpPatch("me/locale")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> UpdateLocale([FromBody] UpdateLocaleRequest request)
+    {
+        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        var (found, locale, error) = await _authService.UpdateLocaleAsync(userId, request.Locale);
+        if (!found) return BadRequest(new { message = error });
+        return Ok(new { locale });
+    }
+
+    [Authorize]
+    [HttpPatch("me/comms-locale")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> UpdateCommsLocale([FromBody] UpdateCommsLocaleRequest request)
+    {
+        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        var (found, commsLocale, error) = await _authService.UpdateCommsLocaleAsync(userId, request.CommsLocale);
+        if (!found) return BadRequest(new { message = error });
+        return Ok(new { commsLocale });
     }
 
     // ── Email confirmation ──

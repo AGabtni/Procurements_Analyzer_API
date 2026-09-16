@@ -53,4 +53,10 @@ public class AppUser
 
     [Column("has_seat")]
     public bool HasSeat { get; set; } = false;
+
+    [Column("locale")]
+    public string Locale { get; set; } = "en-CA";
+
+    [Column("comms_locale")]
+    public string CommsLocale { get; set; } = "en-CA";
 }

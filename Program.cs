@@ -24,6 +24,7 @@ builder.Services.Configure<ResendClientOptions>(o =>
 builder.Services.AddTransient<IResend, ResendClient>();
 
 // Services
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<TenderService>();
 builder.Services.AddScoped<CompanyService>();
 builder.Services.AddScoped<IndustryService>();
