@@ -37,29 +37,42 @@ public class IndustryService
         return children.Select(c => ToDto(c, codesWithChildren.Contains(c.Code))).ToList();
     }
 
-    // Case-insensitive search on title and code prefix. Returns top `limit` results
-    // with an ancestor title chain so the UI can render breadcrumbs.
-    public async Task<List<IndustrySearchResultDto>> SearchAsync(string q, int limit = 50)
+    // Case-insensitive search on title (both languages) and code prefix. Returns
+    // top `limit` results with an ancestor title chain so the UI can render
+    // breadcrumbs. When `locale` is French, current-locale title matches are ranked
+    // first and breadcrumbs resolve to French titles (falling back to English).
+    public async Task<List<IndustrySearchResultDto>> SearchAsync(string q, string? locale = null, int limit = 50)
     {
+        var fr = IsFrench(locale);
         var lower = q.ToLowerInvariant();
-        var results = await _db.Industries
-            .Where(i => i.TitleEn.ToLower().Contains(lower) || i.Code.StartsWith(q))
-            .OrderBy(i => i.Level)
-            .ThenBy(i => i.Code)
-            .Take(limit)
+
+        var matches = await _db.Industries
+            .Where(i => i.TitleEn.ToLower().Contains(lower)
+                || (i.TitleFr != null && i.TitleFr.ToLower().Contains(lower))
+                || i.Code.StartsWith(q))
             .ToListAsync();
 
-        if (results.Count == 0)
+        if (matches.Count == 0)
             return [];
+
+        // Prefer rows whose current-locale title matched, then shallower/lower codes.
+        var results = matches
+            .OrderByDescending(i => LocaleTitleMatches(i, lower, fr))
+            .ThenBy(i => i.Level)
+            .ThenBy(i => i.Code)
+            .Take(limit)
+            .ToList();
 
         var ancestorCodes = results
             .SelectMany(r => GetAncestorCodes(r.Code))
             .Distinct()
             .ToList();
 
-        var titleMap = await _db.Industries
+        var titleMap = (await _db.Industries
             .Where(i => ancestorCodes.Contains(i.Code))
-            .ToDictionaryAsync(i => i.Code, i => i.TitleEn);
+            .Select(i => new { i.Code, i.TitleEn, i.TitleFr })
+            .ToListAsync())
+            .ToDictionary(i => i.Code, i => fr ? (i.TitleFr ?? i.TitleEn) : i.TitleEn);
 
         return results.Select(r => new IndustrySearchResultDto
         {
@@ -78,6 +91,15 @@ public class IndustryService
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────
+
+    private static bool IsFrench(string? locale) =>
+        locale is not null && locale.StartsWith("fr", StringComparison.OrdinalIgnoreCase);
+
+    // True when the title in the requested locale contains the query term.
+    private static bool LocaleTitleMatches(Industry i, string lowerQuery, bool fr) =>
+        fr
+            ? i.TitleFr is not null && i.TitleFr.ToLowerInvariant().Contains(lowerQuery)
+            : i.TitleEn.ToLowerInvariant().Contains(lowerQuery);
 
     private static IndustryDto ToDto(Industry i, bool hasChildren) => new()
     {

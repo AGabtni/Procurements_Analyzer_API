@@ -30,12 +30,12 @@ public class IndustriesController : ControllerBase
     // GET /api/industries/search?q=plumb
     [HttpGet("search")]
     [ProducesResponseType(typeof(List<IndustrySearchResultDto>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> Search([FromQuery] string? q)
+    public async Task<IActionResult> Search([FromQuery] string? q, [FromQuery] string? locale)
     {
         if (string.IsNullOrWhiteSpace(q) || q.Trim().Length < 2)
             return Ok(Array.Empty<IndustrySearchResultDto>());
 
-        var results = await _industryService.SearchAsync(q.Trim());
+        var results = await _industryService.SearchAsync(q.Trim(), locale);
         return Ok(results);
     }
 }
