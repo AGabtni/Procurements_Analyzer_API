@@ -65,10 +65,10 @@ public class AuthService
             .FirstOrDefaultAsync(u => u.Email == request.Email.ToLower().Trim());
 
         if (user is null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
-            return (null, "Invalid credentials");
+            return (null, "invalidCredentials");
 
         if (!user.IsActive)
-            return (null, "Account is inactive. Please contact an administrator.");
+            return (null, "accountInactive");
 
         user.LastLogin = DateTime.UtcNow;
         await _db.SaveChangesAsync();
@@ -88,10 +88,10 @@ public class AuthService
         var email = request.Email.ToLower().Trim();
 
         if (await _db.Users.AnyAsync(u => u.Email == email))
-            return (null, "Email already registered");
+            return (null, "emailRegistered");
 
         if (request.Password.Length < 8)
-            return (null, "Password must be at least 8 characters");
+            return (null, "passwordTooShort");
 
         var inferredLocale = InferLocaleFromRequest();
         var user = new AppUser
@@ -142,10 +142,10 @@ public class AuthService
     public async Task<(bool Found, string? Locale, string? Error)> UpdateLocaleAsync(int userId, string locale)
     {
         if (!IsSupportedLocale(locale))
-            return (false, null, "Unsupported locale");
+            return (false, null, "unsupportedLocale");
 
         var user = await _db.Users.FindAsync(userId);
-        if (user is null) return (false, null, "User not found");
+        if (user is null) return (false, null, "userNotFound");
 
         user.Locale = locale;
         await _db.SaveChangesAsync();
@@ -155,10 +155,10 @@ public class AuthService
     public async Task<(bool Found, string? CommsLocale, string? Error)> UpdateCommsLocaleAsync(int userId, string commsLocale)
     {
         if (!IsSupportedLocale(commsLocale))
-            return (false, null, "Unsupported locale");
+            return (false, null, "unsupportedLocale");
 
         var user = await _db.Users.FindAsync(userId);
-        if (user is null) return (false, null, "User not found");
+        if (user is null) return (false, null, "userNotFound");
 
         user.CommsLocale = commsLocale;
         await _db.SaveChangesAsync();
@@ -178,10 +178,10 @@ public class AuthService
     public async Task<(string Token, string? Error)> SendConfirmationAsync(int userId)
     {
         var user = await _db.Users.FindAsync(userId);
-        if (user is null) return (null!, "User not found");
+        if (user is null) return (null!, "userNotFound");
 
         if (user.EmailConfirmed)
-            return (null!, "Email already confirmed");
+            return (null!, "emailAlreadyConfirmed");
 
         var token = Guid.NewGuid().ToString("N");
         user.EmailConfirmationToken = token;
@@ -213,7 +213,7 @@ public class AuthService
     public async Task<(SettingsDto? Settings, string? Error)> UpdateSettingsAsync(int userId, UpdateSettingsRequest request)
     {
         var user = await _db.Users.FindAsync(userId);
-        if (user is null) return (null, "User not found");
+        if (user is null) return (null, "userNotFound");
 
         if (request.Email is not null)
         {
@@ -221,7 +221,7 @@ public class AuthService
             if (newEmail != user.Email)
             {
                 if (await _db.Users.AnyAsync(u => u.Email == newEmail && u.Id != userId))
-                    return (null, "Email already in use");
+                    return (null, "emailInUse");
 
                 user.Email = newEmail;
                 user.EmailConfirmed = false;
@@ -241,12 +241,12 @@ public class AuthService
     public async Task<string?> ChangePasswordAsync(int userId, string currentPassword, string newPassword)
     {
         var user = await _db.Users.FindAsync(userId);
-        if (user is null) return "User not found";
+        if (user is null) return "userNotFound";
         if (!BCrypt.Net.BCrypt.Verify(currentPassword, user.PasswordHash))
-            return "Current password is incorrect";
+            return "currentPasswordIncorrect";
 
         if (BCrypt.Net.BCrypt.Verify(newPassword, user.PasswordHash))
-            return "New password must be different from your current password";
+            return "newPasswordSameAsCurrent";
 
         user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
         await _db.SaveChangesAsync();

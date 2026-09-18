@@ -28,7 +28,7 @@ public class AuthController : ControllerBase
     {
         var (result, error) = await _authService.LoginAsync(request);
         if (result is null)
-            return Unauthorized(new { message = error });
+            return Unauthorized(new { code = error });
         return Ok(result);
     }
 
@@ -39,7 +39,7 @@ public class AuthController : ControllerBase
     {
         var (user, error) = await _authService.RegisterAsync(request);
         if (error is not null)
-            return BadRequest(new { message = error });
+            return BadRequest(new { code = error });
         return Created("", user);
     }
 
@@ -73,7 +73,7 @@ public class AuthController : ControllerBase
     {
         var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
         var (found, locale, error) = await _authService.UpdateLocaleAsync(userId, request.Locale);
-        if (!found) return BadRequest(new { message = error });
+        if (!found) return BadRequest(new { code = error });
         return Ok(new { locale });
     }
 
@@ -85,7 +85,7 @@ public class AuthController : ControllerBase
     {
         var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
         var (found, commsLocale, error) = await _authService.UpdateCommsLocaleAsync(userId, request.CommsLocale);
-        if (!found) return BadRequest(new { message = error });
+        if (!found) return BadRequest(new { code = error });
         return Ok(new { commsLocale });
     }
 
@@ -100,7 +100,7 @@ public class AuthController : ControllerBase
         var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
         var (token, error) = await _authService.SendConfirmationAsync(userId);
         if (error is not null)
-            return BadRequest(new { message = error });
+            return BadRequest(new { code = error });
 
         var frontendUrl =
             _config["App:FrontendUrl"]
@@ -119,11 +119,11 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> ConfirmEmail([FromQuery] string token)
     {
         if (string.IsNullOrEmpty(token))
-            return BadRequest(new { message = "Token is required" });
+            return BadRequest(new { code = "tokenRequired" });
 
         var success = await _authService.ConfirmEmailAsync(token);
         if (!success)
-            return BadRequest(new { message = "Invalid or expired token" });
+            return BadRequest(new { code = "invalidOrExpiredToken" });
 
         return Ok(new { message = "Email confirmed successfully" });
     }
@@ -151,7 +151,7 @@ public class AuthController : ControllerBase
         var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
         var (settings, error) = await _authService.UpdateSettingsAsync(userId, request);
         if (error is not null)
-            return BadRequest(new { message = error });
+            return BadRequest(new { code = error });
         return Ok(settings);
     }
 
@@ -162,12 +162,12 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.NewPassword) || request.NewPassword.Length < 8)
-            return BadRequest(new { message = "New password must be at least 8 characters" });
+            return BadRequest(new { code = "passwordTooShort" });
 
         var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
         var error = await _authService.ChangePasswordAsync(userId, request.CurrentPassword, request.NewPassword);
         if (error is not null)
-            return BadRequest(new { message = error });
+            return BadRequest(new { code = error });
 
         return NoContent();
     }
