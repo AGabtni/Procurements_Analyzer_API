@@ -1,4 +1,6 @@
+using System.Globalization;
 using System.Text.RegularExpressions;
+using Microsoft.Extensions.Localization;
 using Resend;
 
 namespace ProcurePortal.API.Services;
@@ -8,12 +10,44 @@ public class EmailService
     private readonly IResend _resend;
     private readonly IConfiguration _config;
     private readonly ILogger<EmailService> _logger;
+    private readonly IStringLocalizer<EmailService> _loc;
 
-    public EmailService(IResend resend, IConfiguration config, ILogger<EmailService> logger)
+    public EmailService(
+        IResend resend,
+        IConfiguration config,
+        ILogger<EmailService> logger,
+        IStringLocalizer<EmailService> loc)
     {
         _resend = resend;
         _config = config;
         _logger = logger;
+        _loc = loc;
+    }
+
+    /// <summary>
+    /// Sets the UI culture to the recipient's communications locale for the duration
+    /// of the scope so IStringLocalizer resolves the right resx. Unknown/blank locales
+    /// fall back to the neutral (English) resources. Restores the previous culture on dispose.
+    /// </summary>
+    private sealed class CommsCultureScope : IDisposable
+    {
+        private readonly CultureInfo _previous;
+
+        public CommsCultureScope(string? commsLocale)
+        {
+            _previous = CultureInfo.CurrentUICulture;
+            try
+            {
+                CultureInfo.CurrentUICulture =
+                    string.IsNullOrWhiteSpace(commsLocale) ? _previous : new CultureInfo(commsLocale);
+            }
+            catch (CultureNotFoundException)
+            {
+                // Leave the previous culture in place; neutral resources are English.
+            }
+        }
+
+        public void Dispose() => CultureInfo.CurrentUICulture = _previous;
     }
 
     public async Task SendEmailAsync(string toEmail, string subject, string htmlBody)
@@ -33,17 +67,22 @@ public class EmailService
         _logger.LogInformation("Email sent to {Email}: {Subject}", toEmail, subject);
     }
 
-    public async Task SendConfirmationEmailAsync(string toEmail, string confirmUrl)
+    public async Task SendConfirmationEmailAsync(string toEmail, string confirmUrl, string? commsLocale)
     {
-        var html = $"""
-            <h2>Confirm your email</h2>
-            <p>Click the link below to confirm your email address for ProcurePortal:</p>
-            <p><a href="{confirmUrl}" style="display:inline-block;padding:12px 24px;background:#0d6efd;color:#fff;text-decoration:none;border-radius:6px;">Confirm Email</a></p>
-            <p>Or copy this link: <br/>{confirmUrl}</p>
-            <p>This link expires in 48 hours.</p>
-            """;
+        string subject, html;
+        using (new CommsCultureScope(commsLocale))
+        {
+            subject = _loc["Confirm_Subject"];
+            html = $"""
+                <h2>{_loc["Confirm_Heading"]}</h2>
+                <p>{_loc["Confirm_Intro"]}</p>
+                <p><a href="{confirmUrl}" style="display:inline-block;padding:12px 24px;background:#0d6efd;color:#fff;text-decoration:none;border-radius:6px;">{_loc["Confirm_Button"]}</a></p>
+                <p>{_loc["Confirm_OrCopy"]} <br/>{confirmUrl}</p>
+                <p>{_loc["Confirm_Expires"]}</p>
+                """;
+        }
 
-        await SendEmailAsync(toEmail, "Confirm your email — ProcurePortal", html);
+        await SendEmailAsync(toEmail, subject, html);
     }
 
     public async Task SendMatchNotificationAsync(
@@ -51,22 +90,25 @@ public class EmailService
         string fullName,
         string companyName,
         int newMatchCount,
-        string dashboardUrl
+        string dashboardUrl,
+        string? commsLocale
     )
     {
         var firstName = fullName.Split(' ')[0];
-        var html = $"""
-            <h2>New Tender Matches</h2>
-            <p>Hi {firstName},</p>
-            <p><strong>{newMatchCount}</strong> new opportunit{(newMatchCount != 1 ? "ies were" : "y was")} found matching {companyName}'s profile on ProcurePortal.</p>
-            <p><a href="{dashboardUrl}" style="display:inline-block;padding:12px 24px;background:#0d6efd;color:#fff;text-decoration:none;border-radius:6px;">View Matches</a></p>
-            """;
+        var one = newMatchCount == 1;
+        string subject, html;
+        using (new CommsCultureScope(commsLocale))
+        {
+            subject = _loc[one ? "Notif_Subject_One" : "Notif_Subject_Other", newMatchCount, companyName];
+            html = $"""
+                <h2>{_loc["Matches_Heading"]}</h2>
+                <p>{_loc["Matches_Greeting", firstName]}</p>
+                <p>{_loc[one ? "Notif_Body_One" : "Notif_Body_Other", newMatchCount, companyName]}</p>
+                <p><a href="{dashboardUrl}" style="display:inline-block;padding:12px 24px;background:#0d6efd;color:#fff;text-decoration:none;border-radius:6px;">{_loc["Matches_Button"]}</a></p>
+                """;
+        }
 
-        await SendEmailAsync(
-            toEmail,
-            $"{newMatchCount} new opportunit{(newMatchCount != 1 ? "ies" : "y")} matching {companyName}",
-            html
-        );
+        await SendEmailAsync(toEmail, subject, html);
     }
 
     /// <summary>
@@ -77,23 +119,25 @@ public class EmailService
         string toEmail,
         string fullName,
         int totalMatches,
-        string dashboardUrl
+        string dashboardUrl,
+        string? commsLocale
     )
     {
         var firstName = fullName.Split(' ')[0];
-        var noun = totalMatches != 1 ? "opportunities were" : "opportunity was";
-        var html = $"""
-            <h2>New Tender Matches</h2>
-            <p>Hi {firstName},</p>
-            <p><strong>{totalMatches}</strong> new {noun} found matching your profile on ProcurePortal.</p>
-            <p><a href="{dashboardUrl}" style="display:inline-block;padding:12px 24px;background:#0d6efd;color:#fff;text-decoration:none;border-radius:6px;">View Matches</a></p>
-            """;
+        var one = totalMatches == 1;
+        string subject, html;
+        using (new CommsCultureScope(commsLocale))
+        {
+            subject = _loc[one ? "Digest_Subject_One" : "Digest_Subject_Other", totalMatches];
+            html = $"""
+                <h2>{_loc["Matches_Heading"]}</h2>
+                <p>{_loc["Matches_Greeting", firstName]}</p>
+                <p>{_loc[one ? "Digest_Body_One" : "Digest_Body_Other", totalMatches]}</p>
+                <p><a href="{dashboardUrl}" style="display:inline-block;padding:12px 24px;background:#0d6efd;color:#fff;text-decoration:none;border-radius:6px;">{_loc["Matches_Button"]}</a></p>
+                """;
+        }
 
-        await SendEmailAsync(
-            toEmail,
-            $"{totalMatches} new opportunit{(totalMatches != 1 ? "ies" : "y")} matching your profile",
-            html
-        );
+        await SendEmailAsync(toEmail, subject, html);
     }
 
     /// <summary>

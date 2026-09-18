@@ -175,19 +175,19 @@ public class AuthService
         return (true, user.ActivatedAt);
     }
 
-    public async Task<(string Token, string? Error)> SendConfirmationAsync(int userId)
+    public async Task<(string Token, string? CommsLocale, string? Error)> SendConfirmationAsync(int userId)
     {
         var user = await _db.Users.FindAsync(userId);
-        if (user is null) return (null!, "userNotFound");
+        if (user is null) return (null!, null, "userNotFound");
 
         if (user.EmailConfirmed)
-            return (null!, "emailAlreadyConfirmed");
+            return (null!, null, "emailAlreadyConfirmed");
 
         var token = Guid.NewGuid().ToString("N");
         user.EmailConfirmationToken = token;
         await _db.SaveChangesAsync();
 
-        return (token, null);
+        return (token, user.CommsLocale, null);
     }
 
     public async Task<bool> ConfirmEmailAsync(string token)

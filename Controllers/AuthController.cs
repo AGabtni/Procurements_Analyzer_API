@@ -98,7 +98,7 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> SendConfirmation()
     {
         var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-        var (token, error) = await _authService.SendConfirmationAsync(userId);
+        var (token, commsLocale, error) = await _authService.SendConfirmationAsync(userId);
         if (error is not null)
             return BadRequest(new { code = error });
 
@@ -109,7 +109,7 @@ public class AuthController : ControllerBase
         var settings = await _authService.GetSettingsAsync(userId);
         var email = settings!.Email;
 
-        await _emailService.SendConfirmationEmailAsync(email, confirmUrl);
+        await _emailService.SendConfirmationEmailAsync(email, confirmUrl, commsLocale);
         return Ok(new { message = "Confirmation email sent" });
     }
 

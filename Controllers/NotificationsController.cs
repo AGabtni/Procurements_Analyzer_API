@@ -76,7 +76,7 @@ public class NotificationsController : ControllerBase
             try
             {
                 await _emailService.SendMatchNotificationAsync(
-                    user.Email, user.FullName, profile.CompanyName, request.NewMatchCount, dashboardUrl);
+                    user.Email, user.FullName, profile.CompanyName, request.NewMatchCount, dashboardUrl, user.CommsLocale);
                 _logger.LogInformation(
                     "Match notification sent to {Email} for company {CompanyId} ({Count} matches)",
                     user.Email, request.CompanyId, request.NewMatchCount);
@@ -142,7 +142,7 @@ public class NotificationsController : ControllerBase
                 continue;
             try
             {
-                await _emailService.SendMatchDigestAsync(user.Email, user.FullName, total, dashboardUrl);
+                await _emailService.SendMatchDigestAsync(user.Email, user.FullName, total, dashboardUrl, user.CommsLocale);
                 digestsSent++;
             }
             catch (Exception ex)
@@ -216,7 +216,7 @@ public class NotificationsController : ControllerBase
         try
         {
             await _emailService.SendMatchNotificationAsync(
-                user.Email, user.FullName, profile.CompanyName, newCount, dashboardUrl);
+                user.Email, user.FullName, profile.CompanyName, newCount, dashboardUrl, user.CommsLocale);
             _logger.LogInformation(
                 "Manual notification sent by admin to {Email} for company {CompanyId} ({Count} new matches)",
                 user.Email, companyId, newCount);
@@ -260,7 +260,7 @@ public class NotificationsController : ControllerBase
             try
             {
                 await _emailService.SendMatchNotificationAsync(
-                    user.Email, user.FullName, profile.CompanyName, newCount, dashboardUrl);
+                    user.Email, user.FullName, profile.CompanyName, newCount, dashboardUrl, user.CommsLocale);
                 _logger.LogInformation(
                     "Manual notification sent by admin to {Email} for company {CompanyId} ({Count} new matches)",
                     user.Email, companyId, newCount);

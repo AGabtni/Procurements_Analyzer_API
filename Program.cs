@@ -30,6 +30,7 @@ builder.Services.AddScoped<CompanyService>();
 builder.Services.AddScoped<IndustryService>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<EmailService>();
+builder.Services.AddLocalization(options => options.ResourcesPath = "Resources");
 
 // JWT Authentication
 var jwtKey =
