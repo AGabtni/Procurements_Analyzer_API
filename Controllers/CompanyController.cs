@@ -45,7 +45,7 @@ public class CompanyController : ControllerBase
     {
         var existing = await _companyService.GetProfileByUserIdAsync(GetUserId());
         if (existing is not null)
-            return Conflict(new { message = "You already have a company profile" });
+            return Conflict(new { code = "profileExists" });
 
         var profile = await _companyService.CreateProfileAsync(request, GetUserId());
         return CreatedAtAction(nameof(GetMyProfile), profile);

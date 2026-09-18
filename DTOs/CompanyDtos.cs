@@ -85,7 +85,7 @@ public class CreateCompanyProfileRequest
     [Required, MaxLength(50)]
     public string Province { get; set; } = string.Empty;
 
-    [Required, MinLength(150, ErrorMessage = "Description must be at least 150 characters."), MaxLength(2000)]
+    [Required, MinLength(150, ErrorMessage = "descriptionTooShort"), MaxLength(2000)]
     public string ServicesDescription { get; set; } = string.Empty;
 
     public string[]? Keywords { get; set; }
@@ -98,7 +98,7 @@ public class CreateCompanyProfileRequest
 
     public string[]? CommodityTypes { get; set; }
 
-    [Required, MinLength(1, ErrorMessage = "At least one industry must be selected.")]
+    [Required, MinLength(1, ErrorMessage = "industryRequired")]
     public string[] IndustryCodes { get; set; } = [];
 
     public CompanyPreferencesRequest? Preferences { get; set; }
@@ -122,7 +122,7 @@ public class UpdateCompanyProfileRequest
     [MaxLength(50)]
     public string? Province { get; set; }
 
-    [MinLength(150, ErrorMessage = "Description must be at least 150 characters."), MaxLength(2000)]
+    [MinLength(150, ErrorMessage = "descriptionTooShort"), MaxLength(2000)]
     public string? ServicesDescription { get; set; }
 
     public string[]? Keywords { get; set; }
@@ -152,6 +152,6 @@ public class CompanyPreferencesRequest
 public class UpdateMatchStatusRequest
 {
     [Required]
-    [RegularExpression("^(new|viewed|saved|dismissed)$", ErrorMessage = "Status must be: new, viewed, saved, or dismissed")]
+    [RegularExpression("^(new|viewed|saved|dismissed)$", ErrorMessage = "invalidStatus")]
     public string Status { get; set; } = string.Empty;
 }
