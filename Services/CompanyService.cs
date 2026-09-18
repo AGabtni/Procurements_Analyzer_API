@@ -353,6 +353,8 @@ public class CompanyService
                     (wantFr && m.MatchReasonFr != null && m.MatchReasonFr != "")
                         ? m.MatchReasonFr
                         : (m.MatchReasonEn ?? m.MatchReason),
+                MatchReasonEn = m.MatchReasonEn ?? m.MatchReason,
+                MatchReasonFr = m.MatchReasonFr,
                 MatchedAt = m.MatchedAt,
                 Status = m.Status,
             })
