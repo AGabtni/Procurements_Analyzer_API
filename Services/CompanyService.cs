@@ -27,7 +27,7 @@ public class CompanyService
         return "trialing";
     }
 
-    public record MatchAccess(int CompanyId, string Status, bool CanSeeFull);
+    public record MatchAccess(int CompanyId, string Status, bool CanSeeFull, string CommsLocale);
 
     /// Resolves whether a user may see full match payloads:
     /// trialing → yes; active → only seated users; expired → counts only.
@@ -45,7 +45,7 @@ public class CompanyService
             "active" => user.HasSeat,
             _ => false,
         };
-        return new MatchAccess(user.CompanyProfile.Id, status, canSeeFull);
+        return new MatchAccess(user.CompanyProfile.Id, status, canSeeFull, user.CommsLocale);
     }
 
     // ── Profile CRUD ──
@@ -296,9 +296,12 @@ public class CompanyService
         string[]? organizations = null,
         string[]? noticeTypes = null,
         int page = 1,
-        int pageSize = 25
+        int pageSize = 25,
+        string? commsLocale = null
     )
     {
+        var wantFr = commsLocale == "fr-CA";
+
         var query = _db.CompanyMatches.Include(m => m.Tender).Where(m => m.CompanyId == companyId);
 
         if (statuses is { Length: > 0 })
@@ -343,7 +346,11 @@ public class CompanyService
                 NoticeType = m.Tender.NoticeType,
                 NoticeLink = m.Tender.NoticeLink,
                 MatchScore = m.MatchScore,
-                MatchReason = m.MatchReason,
+                // Resolve to the reader's language: fr → en → legacy match_reason.
+                MatchReason =
+                    (wantFr && m.MatchReasonFr != null && m.MatchReasonFr != "")
+                        ? m.MatchReasonFr
+                        : (m.MatchReasonEn ?? m.MatchReason),
                 MatchedAt = m.MatchedAt,
                 Status = m.Status,
             })

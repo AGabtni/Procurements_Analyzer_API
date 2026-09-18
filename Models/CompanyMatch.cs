@@ -22,6 +22,12 @@ public class CompanyMatch
     [Column("match_reason")]
     public string? MatchReason { get; set; }
 
+    [Column("match_reason_en")]
+    public string? MatchReasonEn { get; set; }
+
+    [Column("match_reason_fr")]
+    public string? MatchReasonFr { get; set; }
+
     [Column("matched_at")]
     public DateTime MatchedAt { get; set; }
 

@@ -93,7 +93,7 @@ public class CompanyController : ControllerBase
         // Locked (expired trial / unpaid seat): never leak tender payloads. Counts come from /stats.
         if (!access.CanSeeFull)
             return Ok(new PagedResult<CompanyMatchDto> { Items = [], TotalCount = 0, Page = 1, PageSize = pageSize });
-        var matches = await _companyService.GetMatchesAsync(access.CompanyId, statuses, search, organizations, noticeTypes, page, pageSize);
+        var matches = await _companyService.GetMatchesAsync(access.CompanyId, statuses, search, organizations, noticeTypes, page, pageSize, access.CommsLocale);
         return Ok(matches);
     }
 
