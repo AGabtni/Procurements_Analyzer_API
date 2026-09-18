@@ -86,14 +86,16 @@ public class CompanyController : ControllerBase
 
     [HttpGet("me/matches")]
     [ProducesResponseType(typeof(PagedResult<CompanyMatchDto>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetMyMatches([FromQuery] string[]? statuses, [FromQuery] string? search, [FromQuery] string[]? organizations, [FromQuery] string[]? noticeTypes, [FromQuery] int page = 1, [FromQuery] int pageSize = 25)
+    public async Task<IActionResult> GetMyMatches([FromQuery] string[]? statuses, [FromQuery] string? search, [FromQuery] string[]? organizations, [FromQuery] string[]? noticeTypes, [FromQuery] int page = 1, [FromQuery] int pageSize = 25, [FromQuery] string? locale = null)
     {
         var access = await _companyService.GetMatchAccessAsync(GetUserId());
         if (access is null) return NotFound();
         // Locked (expired trial / unpaid seat): never leak tender payloads. Counts come from /stats.
         if (!access.CanSeeFull)
             return Ok(new PagedResult<CompanyMatchDto> { Items = [], TotalCount = 0, Page = 1, PageSize = pageSize });
-        var matches = await _companyService.GetMatchesAsync(access.CompanyId, statuses, search, organizations, noticeTypes, page, pageSize, access.CommsLocale);
+        // On-screen match reasons follow the UI language sent by the client,
+        // falling back to the user's persisted UI locale.
+        var matches = await _companyService.GetMatchesAsync(access.CompanyId, statuses, search, organizations, noticeTypes, page, pageSize, locale ?? access.Locale);
         return Ok(matches);
     }
 
