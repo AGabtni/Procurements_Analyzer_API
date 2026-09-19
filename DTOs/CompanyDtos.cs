@@ -61,6 +61,8 @@ public class CompanyMatchDto
     // Raw per-language reasons — used by the admin view to show both at once.
     public string? MatchReasonEn { get; set; }
     public string? MatchReasonFr { get; set; }
+    // Tender description — populated for the admin export.
+    public string? TenderDescription { get; set; }
     public DateTime MatchedAt { get; set; }
     public string Status { get; set; } = "new";
 }

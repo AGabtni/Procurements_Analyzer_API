@@ -275,7 +275,8 @@ public class CompanyController : ControllerBase
     [ProducesResponseType(typeof(PagedResult<CompanyMatchDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetMatches(int id, [FromQuery] string[]? statuses, [FromQuery] string? search, [FromQuery] string[]? organizations, [FromQuery] string[]? noticeTypes, [FromQuery] int page = 1, [FromQuery] int pageSize = 25)
     {
-        var matches = await _companyService.GetMatchesAsync(id, statuses, search, organizations, noticeTypes, page, pageSize);
+        // Admin view shows both reasons and exports the tender description.
+        var matches = await _companyService.GetMatchesAsync(id, statuses, search, organizations, noticeTypes, page, pageSize, includeDescription: true);
         return Ok(matches);
     }
 

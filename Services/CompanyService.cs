@@ -299,7 +299,8 @@ public class CompanyService
         string[]? noticeTypes = null,
         int page = 1,
         int pageSize = 25,
-        string? displayLocale = null
+        string? displayLocale = null,
+        bool includeDescription = false
     )
     {
         var wantFr = displayLocale == "fr-CA";
@@ -355,6 +356,7 @@ public class CompanyService
                         : (m.MatchReasonEn ?? m.MatchReason),
                 MatchReasonEn = m.MatchReasonEn ?? m.MatchReason,
                 MatchReasonFr = m.MatchReasonFr,
+                TenderDescription = includeDescription ? (m.Tender.DescriptionMd ?? m.Tender.Description) : null,
                 MatchedAt = m.MatchedAt,
                 Status = m.Status,
             })
