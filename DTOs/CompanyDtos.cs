@@ -64,6 +64,7 @@ public class CompanyMatchDto
     // Tender description — populated for the admin export.
     public string? TenderDescription { get; set; }
     public DateTime MatchedAt { get; set; }
+    public DateTime? ViewedAt { get; set; }
     public string Status { get; set; } = "new";
 }
 

@@ -285,6 +285,9 @@ public class CompanyService
         if (match is null)
             return false;
 
+        if (status == "viewed" && match.ViewedAt is null)
+            match.ViewedAt = DateTime.UtcNow;
+
         match.Status = status;
         await _db.SaveChangesAsync();
         return true;
@@ -308,7 +311,19 @@ public class CompanyService
         var query = _db.CompanyMatches.Include(m => m.Tender).Where(m => m.CompanyId == companyId);
 
         if (statuses is { Length: > 0 })
-            query = query.Where(m => statuses.Contains(m.Status));
+        {
+            var hasNew = statuses.Contains("new");
+            var others = statuses.Where(s => s != "new").ToArray();
+
+            if (hasNew && others.Length > 0)
+                // "new" = unviewed (excl. dismissed) combined with explicit other statuses
+                query = query.Where(m =>
+                    (m.ViewedAt == null && m.Status != "dismissed") || others.Contains(m.Status));
+            else if (hasNew)
+                query = query.Where(m => m.ViewedAt == null && m.Status != "dismissed");
+            else
+                query = query.Where(m => others.Contains(m.Status));
+        }
 
         if (!string.IsNullOrWhiteSpace(search))
         {
@@ -358,6 +373,7 @@ public class CompanyService
                 MatchReasonFr = m.MatchReasonFr,
                 TenderDescription = includeDescription ? (m.Tender.DescriptionMd ?? m.Tender.Description) : null,
                 MatchedAt = m.MatchedAt,
+                ViewedAt = m.ViewedAt,
                 Status = m.Status,
             })
             .ToListAsync();
@@ -378,8 +394,8 @@ public class CompanyService
         return new MatchStatsDto
         {
             TotalMatches = matches.Count,
-            NewCount = matches.Count(m => m.Status == "new"),
-            ViewedCount = matches.Count(m => m.Status == "viewed"),
+            NewCount = matches.Count(m => m.ViewedAt == null && m.Status != "dismissed"),
+            ViewedCount = matches.Count(m => m.ViewedAt != null),
             SavedCount = matches.Count(m => m.Status == "saved"),
             DismissedCount = matches.Count(m => m.Status == "dismissed"),
             AverageScore =

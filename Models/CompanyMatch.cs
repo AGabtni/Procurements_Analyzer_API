@@ -34,6 +34,9 @@ public class CompanyMatch
     [Column("status")]
     public string Status { get; set; } = "new";
 
+    [Column("viewed_at")]
+    public DateTime? ViewedAt { get; set; }
+
     [ForeignKey("CompanyId")]
     public CompanyProfile Company { get; set; } = null!;
 
