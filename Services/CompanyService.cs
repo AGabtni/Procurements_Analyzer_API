@@ -303,7 +303,9 @@ public class CompanyService
         int page = 1,
         int pageSize = 25,
         string? displayLocale = null,
-        bool includeDescription = false
+        bool includeDescription = false,
+        string? sortBy = null,
+        string? sortDir = null
     )
     {
         var wantFr = displayLocale == "fr-CA";
@@ -343,8 +345,16 @@ public class CompanyService
         var clampedPageSize = Math.Clamp(pageSize, 1, 1000);
         var clampedPage = Math.Max(page, 1);
 
-        var items = await query
-            .OrderByDescending(m => m.MatchScore)
+        var asc = string.Equals(sortDir, "asc", StringComparison.OrdinalIgnoreCase);
+        IOrderedQueryable<CompanyMatch> ordered = sortBy switch
+        {
+            "matchedAt"    => asc ? query.OrderBy(m => m.MatchedAt)           : query.OrderByDescending(m => m.MatchedAt),
+            "closingDate"  => asc ? query.OrderBy(m => m.Tender.ClosingDate)  : query.OrderByDescending(m => m.Tender.ClosingDate),
+            "organization" => asc ? query.OrderBy(m => m.Tender.BuyingOrganization) : query.OrderByDescending(m => m.Tender.BuyingOrganization),
+            _              => asc ? query.OrderBy(m => m.MatchScore)          : query.OrderByDescending(m => m.MatchScore),
+        };
+
+        var items = await ordered
             .Skip((clampedPage - 1) * clampedPageSize)
             .Take(clampedPageSize)
             .Select(m => new CompanyMatchDto
