@@ -12,6 +12,7 @@ public class TenderListDto
     public string? NoticeType { get; set; }
     public string? ProcurementMethod { get; set; }
     public bool? HasDocuments { get; set; }
+    public string? Province { get; set; }
 }
 
 public class TenderDetailDto
@@ -56,6 +57,7 @@ public class TenderSearchParams
     public string? Category { get; set; }
     public string? Organization { get; set; }
     public string? NoticeType { get; set; }
+    public string[]? Provinces { get; set; }
     public bool? OpenOnly { get; set; } = true;
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 20;

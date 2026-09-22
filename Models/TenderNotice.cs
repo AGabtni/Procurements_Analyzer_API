@@ -72,4 +72,7 @@ public class TenderNotice
 
     [Column("rg_opp")]
     public string? RegionOfOpportunity { get; set; }
+
+    [Column("province")]
+    public string? Province { get; set; }
 }

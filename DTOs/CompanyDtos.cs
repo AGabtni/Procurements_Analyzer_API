@@ -68,7 +68,7 @@ public class CompanyMatchDto
     public string Status { get; set; } = "new";
 }
 
-public record MatchFiltersDto(string[] Organizations, string[] NoticeTypes);
+public record MatchFiltersDto(string[] Organizations, string[] NoticeTypes, string[] Provinces);
 
 public class MatchStatsDto
 {

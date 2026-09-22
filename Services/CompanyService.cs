@@ -307,7 +307,8 @@ public class CompanyService
         string? sortBy = null,
         string? sortDir = null,
         bool expiredOnly = false,
-        bool openedOnly = false
+        bool openedOnly = false,
+        string[]? provinces = null
     )
     {
         var wantFr = displayLocale == "fr-CA";
@@ -323,6 +324,9 @@ public class CompanyService
 
         if (openedOnly)
             query = query.Where(m => m.ViewedAt != null);
+
+        if (provinces is { Length: > 0 })
+            query = query.Where(m => m.Tender.Province != null && provinces.Contains(m.Tender.Province));
 
         if (statuses is { Length: > 0 })
         {
@@ -448,7 +452,12 @@ public class CompanyService
             .Select(m => m.Tender.NoticeType!)
             .Distinct().OrderBy(t => t).ToListAsync();
 
-        return new MatchFiltersDto(orgs.ToArray(), types.ToArray());
+        var provinces = await base_q
+            .Where(m => m.Tender.Province != null)
+            .Select(m => m.Tender.Province!)
+            .Distinct().OrderBy(p => p).ToListAsync();
+
+        return new MatchFiltersDto(orgs.ToArray(), types.ToArray(), provinces.ToArray());
     }
 
     // ── Matching trigger ──

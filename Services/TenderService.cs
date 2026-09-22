@@ -65,6 +65,10 @@ public class TenderService
             );
         }
 
+        // Filter: province (multi-select)
+        if (searchParams.Provinces is { Length: > 0 })
+            query = query.Where(t => searchParams.Provinces.Contains(t.Province));
+
         // Get total count before pagination
         var totalCount = await query.CountAsync();
 
@@ -106,6 +110,7 @@ public class TenderService
                 ClosingDate = TimestampToDateTime(t.ClosingDate),
                 NoticeType = t.NoticeType,
                 ProcurementMethod = t.ProcurementMethod,
+                Province = t.Province,
                 HasDocuments = t.HasDocuments,
             })
             .ToListAsync();
