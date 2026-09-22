@@ -305,12 +305,24 @@ public class CompanyService
         string? displayLocale = null,
         bool includeDescription = false,
         string? sortBy = null,
-        string? sortDir = null
+        string? sortDir = null,
+        bool expiredOnly = false,
+        bool openedOnly = false
     )
     {
         var wantFr = displayLocale == "fr-CA";
+        var unixNow = (float)DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
         var query = _db.CompanyMatches.Include(m => m.Tender).Where(m => m.CompanyId == companyId);
+
+        // Scope by expiry before any other filter
+        if (expiredOnly)
+            query = query.Where(m => m.Tender.ClosingDate != null && m.Tender.ClosingDate < unixNow);
+        else
+            query = query.Where(m => m.Tender.ClosingDate == null || m.Tender.ClosingDate >= unixNow);
+
+        if (openedOnly)
+            query = query.Where(m => m.ViewedAt != null);
 
         if (statuses is { Length: > 0 })
         {
@@ -399,18 +411,26 @@ public class CompanyService
 
     public async Task<MatchStatsDto> GetMatchStatsAsync(int companyId)
     {
-        var matches = await _db.CompanyMatches.Where(m => m.CompanyId == companyId).ToListAsync();
+        var unixNow = (float)DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+
+        var matches = await _db.CompanyMatches
+            .Include(m => m.Tender)
+            .Where(m => m.CompanyId == companyId)
+            .ToListAsync();
+
+        var active  = matches.Where(m => m.Tender?.ClosingDate == null || m.Tender.ClosingDate >= unixNow).ToList();
+        var expired = matches.Where(m => m.Tender?.ClosingDate != null && m.Tender.ClosingDate < unixNow).ToList();
 
         return new MatchStatsDto
         {
-            TotalMatches = matches.Count,
-            NewCount = matches.Count(m => m.ViewedAt == null && m.Status != "dismissed"),
-            ViewedCount = matches.Count(m => m.ViewedAt != null),
-            SavedCount = matches.Count(m => m.Status == "saved"),
-            DismissedCount = matches.Count(m => m.Status == "dismissed"),
-            AverageScore =
-                matches.Count > 0 ? Math.Round(matches.Average(m => m.MatchScore), 1) : 0,
-            HighScoreCount = matches.Count(m => m.MatchScore >= 70),
+            TotalMatches   = active.Count,
+            ExpiredCount   = expired.Count,
+            NewCount       = active.Count(m => m.ViewedAt == null && m.Status != "dismissed"),
+            ViewedCount    = active.Count(m => m.ViewedAt != null),
+            SavedCount     = active.Count(m => m.Status == "saved"),
+            DismissedCount = active.Count(m => m.Status == "dismissed"),
+            AverageScore   = active.Count > 0 ? Math.Round(active.Average(m => m.MatchScore), 1) : 0,
+            HighScoreCount = active.Count(m => m.MatchScore >= 70),
         };
     }
 

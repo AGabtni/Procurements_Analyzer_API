@@ -77,6 +77,7 @@ public class MatchStatsDto
     public int ViewedCount { get; set; }
     public int SavedCount { get; set; }
     public int DismissedCount { get; set; }
+    public int ExpiredCount { get; set; }
     public double AverageScore { get; set; }
     public int HighScoreCount { get; set; }
 }

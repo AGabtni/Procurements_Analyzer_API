@@ -86,7 +86,7 @@ public class CompanyController : ControllerBase
 
     [HttpGet("me/matches")]
     [ProducesResponseType(typeof(PagedResult<CompanyMatchDto>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetMyMatches([FromQuery] string[]? statuses, [FromQuery] string? search, [FromQuery] string[]? organizations, [FromQuery] string[]? noticeTypes, [FromQuery] int page = 1, [FromQuery] int pageSize = 25, [FromQuery] string? locale = null, [FromQuery] string? sortBy = null, [FromQuery] string? sortDir = null)
+    public async Task<IActionResult> GetMyMatches([FromQuery] string[]? statuses, [FromQuery] string? search, [FromQuery] string[]? organizations, [FromQuery] string[]? noticeTypes, [FromQuery] int page = 1, [FromQuery] int pageSize = 25, [FromQuery] string? locale = null, [FromQuery] string? sortBy = null, [FromQuery] string? sortDir = null, [FromQuery] bool expiredOnly = false, [FromQuery] bool openedOnly = false)
     {
         var access = await _companyService.GetMatchAccessAsync(GetUserId());
         if (access is null) return NotFound();
@@ -95,7 +95,7 @@ public class CompanyController : ControllerBase
             return Ok(new PagedResult<CompanyMatchDto> { Items = [], TotalCount = 0, Page = 1, PageSize = pageSize });
         // On-screen match reasons follow the UI language sent by the client,
         // falling back to the user's persisted UI locale.
-        var matches = await _companyService.GetMatchesAsync(access.CompanyId, statuses, search, organizations, noticeTypes, page, pageSize, locale ?? access.Locale, sortBy: sortBy, sortDir: sortDir);
+        var matches = await _companyService.GetMatchesAsync(access.CompanyId, statuses, search, organizations, noticeTypes, page, pageSize, locale ?? access.Locale, sortBy: sortBy, sortDir: sortDir, expiredOnly: expiredOnly, openedOnly: openedOnly);
         return Ok(matches);
     }
 
@@ -273,10 +273,10 @@ public class CompanyController : ControllerBase
     [HttpGet("{id:int}/matches")]
     [Authorize(Roles = "admin")]
     [ProducesResponseType(typeof(PagedResult<CompanyMatchDto>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetMatches(int id, [FromQuery] string[]? statuses, [FromQuery] string? search, [FromQuery] string[]? organizations, [FromQuery] string[]? noticeTypes, [FromQuery] int page = 1, [FromQuery] int pageSize = 25, [FromQuery] string? sortBy = null, [FromQuery] string? sortDir = null)
+    public async Task<IActionResult> GetMatches(int id, [FromQuery] string[]? statuses, [FromQuery] string? search, [FromQuery] string[]? organizations, [FromQuery] string[]? noticeTypes, [FromQuery] int page = 1, [FromQuery] int pageSize = 25, [FromQuery] string? sortBy = null, [FromQuery] string? sortDir = null, [FromQuery] bool expiredOnly = false, [FromQuery] bool openedOnly = false)
     {
         // Admin view shows both reasons and exports the tender description.
-        var matches = await _companyService.GetMatchesAsync(id, statuses, search, organizations, noticeTypes, page, pageSize, includeDescription: true, sortBy: sortBy, sortDir: sortDir);
+        var matches = await _companyService.GetMatchesAsync(id, statuses, search, organizations, noticeTypes, page, pageSize, includeDescription: true, sortBy: sortBy, sortDir: sortDir, expiredOnly: expiredOnly, openedOnly: openedOnly);
         return Ok(matches);
     }
 
