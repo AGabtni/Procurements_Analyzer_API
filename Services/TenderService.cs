@@ -88,8 +88,8 @@ public class TenderService
                 ? query.OrderByDescending(t => t.NoticeType)
                 : query.OrderBy(t => t.NoticeType),
             _ => searchParams.SortDesc
-                ? query.OrderByDescending(t => t.ClosingDate)
-                : query.OrderBy(t => t.ClosingDate),
+                ? query.OrderByDescending(t => t.ClosingDate > 0 ? t.ClosingDate : (float?)null)
+                : query.OrderBy(t => t.ClosingDate > 0 ? t.ClosingDate : (float?)null),
         };
 
         // Paginate
