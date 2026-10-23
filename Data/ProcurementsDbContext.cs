@@ -16,7 +16,9 @@ public class ProcurementsDbContext : DbContext
     public DbSet<CompanyProfile> CompanyProfiles { get; set; }
     public DbSet<CompanyPreferences> CompanyPreferences { get; set; }
     public DbSet<CompanyMatch> CompanyMatches { get; set; }
+    public DbSet<MatchExpiryNotification> MatchExpiryNotifications { get; set; }
     public DbSet<AppUser> Users { get; set; }
+    public DbSet<UserPreferences> UserPreferences { get; set; }
     public DbSet<Industry> Industries { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -64,6 +66,11 @@ public class ProcurementsDbContext : DbContext
                 .WithMany(p => p.Users)
                 .HasForeignKey(e => e.CompanyId)
                 .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.Preferences)
+                .WithOne(p => p.User)
+                .HasForeignKey<UserPreferences>(p => p.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<Industry>(entity =>

@@ -24,6 +24,7 @@ public class AuthService
     {
         var user = await _db.Users
             .Include(u => u.CompanyProfile)
+            .Include(u => u.Preferences)
             .FirstOrDefaultAsync(u => u.Id == userId);
         return (
             user?.ActivatedAt,
@@ -31,8 +32,8 @@ public class AuthService
             SubscriptionStatusOf(user),
             user?.CompanyProfile?.TrialEndsAt,
             user?.CompanyId,
-            user?.Locale ?? DefaultLocale,
-            user?.CommsLocale ?? DefaultLocale
+            user?.Preferences?.Locale ?? DefaultLocale,
+            user?.Preferences?.CommsLocale ?? DefaultLocale
         );
     }
 
@@ -62,6 +63,7 @@ public class AuthService
     {
         var user = await _db.Users
             .Include(u => u.CompanyProfile)
+            .Include(u => u.Preferences)
             .FirstOrDefaultAsync(u => u.Email == request.Email.ToLower().Trim());
 
         if (user is null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
@@ -74,7 +76,12 @@ public class AuthService
         await _db.SaveChangesAsync();
 
         var token = GenerateToken(user);
-        return (new AuthResponse(token, user.Email, user.FullName, user.Role, user.EmailConfirmed, user.NotificationsEnabled, user.ActivatedAt, TrialDays, SubscriptionStatusOf(user), user.CompanyProfile?.TrialEndsAt, user.CompanyId, user.Locale, user.CommsLocale), null);
+        return (new AuthResponse(token, user.Email, user.FullName, user.Role, user.EmailConfirmed,
+            user.Preferences?.NotificationsEnabled ?? true,
+            user.ActivatedAt, TrialDays, SubscriptionStatusOf(user),
+            user.CompanyProfile?.TrialEndsAt, user.CompanyId,
+            user.Preferences?.Locale ?? DefaultLocale,
+            user.Preferences?.CommsLocale ?? DefaultLocale), null);
     }
 
     public async Task<bool> VerifyPasswordAsync(int userId, string password)
@@ -101,8 +108,11 @@ public class AuthService
             FullName = request.FullName.Trim(),
             Role = "user",
             IsActive = false,
-            Locale = inferredLocale,
-            CommsLocale = inferredLocale,
+            Preferences = new UserPreferences
+            {
+                Locale = inferredLocale,
+                CommsLocale = inferredLocale,
+            },
         };
 
         _db.Users.Add(user);
@@ -118,10 +128,13 @@ public class AuthService
             .OrderBy(u => u.CreatedAt)
             .Select(u => new UserDto(
                 u.Id, u.Email, u.FullName, u.Role, u.IsActive, u.CreatedAt,
-                u.EmailConfirmed, u.NotificationsEnabled,
+                u.EmailConfirmed,
+                u.Preferences != null ? u.Preferences.NotificationsEnabled : true,
                 u.CompanyProfile != null ? u.CompanyProfile.Id : (int?)null,
                 u.CompanyProfile != null ? u.CompanyProfile.CompanyName : null,
-                u.ActivatedAt, TrialDays, u.LastLogin, u.Locale, u.CommsLocale
+                u.ActivatedAt, TrialDays, u.LastLogin,
+                u.Preferences != null ? u.Preferences.Locale : DefaultLocale,
+                u.Preferences != null ? u.Preferences.CommsLocale : DefaultLocale
             ))
             .ToListAsync();
     }
@@ -129,12 +142,15 @@ public class AuthService
     public async Task<List<UserDto>> GetUnlinkedUsersAsync()
     {
         return await _db.Users
-            .Include(u => u.CompanyProfile)
             .Where(u => u.CompanyId == null && u.IsActive)
             .OrderBy(u => u.FullName)
             .Select(u => new UserDto(
                 u.Id, u.Email, u.FullName, u.Role, u.IsActive, u.CreatedAt,
-                u.EmailConfirmed, u.NotificationsEnabled, null, null, u.ActivatedAt, TrialDays, u.LastLogin, u.Locale, u.CommsLocale
+                u.EmailConfirmed,
+                u.Preferences != null ? u.Preferences.NotificationsEnabled : true,
+                null, null, u.ActivatedAt, TrialDays, u.LastLogin,
+                u.Preferences != null ? u.Preferences.Locale : DefaultLocale,
+                u.Preferences != null ? u.Preferences.CommsLocale : DefaultLocale
             ))
             .ToListAsync();
     }
@@ -144,12 +160,12 @@ public class AuthService
         if (!IsSupportedLocale(locale))
             return (false, null, "unsupportedLocale");
 
-        var user = await _db.Users.FindAsync(userId);
-        if (user is null) return (false, null, "userNotFound");
+        var prefs = await _db.UserPreferences.FindAsync(userId);
+        if (prefs is null) return (false, null, "userNotFound");
 
-        user.Locale = locale;
+        prefs.Locale = locale;
         await _db.SaveChangesAsync();
-        return (true, user.Locale, null);
+        return (true, prefs.Locale, null);
     }
 
     public async Task<(bool Found, string? CommsLocale, string? Error)> UpdateCommsLocaleAsync(int userId, string commsLocale)
@@ -157,12 +173,12 @@ public class AuthService
         if (!IsSupportedLocale(commsLocale))
             return (false, null, "unsupportedLocale");
 
-        var user = await _db.Users.FindAsync(userId);
-        if (user is null) return (false, null, "userNotFound");
+        var prefs = await _db.UserPreferences.FindAsync(userId);
+        if (prefs is null) return (false, null, "userNotFound");
 
-        user.CommsLocale = commsLocale;
+        prefs.CommsLocale = commsLocale;
         await _db.SaveChangesAsync();
-        return (true, user.CommsLocale, null);
+        return (true, prefs.CommsLocale, null);
     }
 
     public async Task<(bool Found, DateTime? ActivatedAt)> SetActiveAsync(int userId, bool active)
@@ -177,7 +193,9 @@ public class AuthService
 
     public async Task<(string Token, string? CommsLocale, string? Error)> SendConfirmationAsync(int userId)
     {
-        var user = await _db.Users.FindAsync(userId);
+        var user = await _db.Users
+            .Include(u => u.Preferences)
+            .FirstOrDefaultAsync(u => u.Id == userId);
         if (user is null) return (null!, null, "userNotFound");
 
         if (user.EmailConfirmed)
@@ -187,7 +205,7 @@ public class AuthService
         user.EmailConfirmationToken = token;
         await _db.SaveChangesAsync();
 
-        return (token, user.CommsLocale, null);
+        return (token, user.Preferences?.CommsLocale, null);
     }
 
     public async Task<bool> ConfirmEmailAsync(string token)
@@ -205,14 +223,22 @@ public class AuthService
 
     public async Task<SettingsDto?> GetSettingsAsync(int userId)
     {
-        var user = await _db.Users.FindAsync(userId);
+        var user = await _db.Users
+            .Include(u => u.Preferences)
+            .FirstOrDefaultAsync(u => u.Id == userId);
         if (user is null) return null;
-        return new SettingsDto(user.Email, user.EmailConfirmed, user.NotificationsEnabled);
+        var p = user.Preferences;
+        return new SettingsDto(user.Email, user.EmailConfirmed,
+            p?.NotificationsEnabled ?? true,
+            p?.NotifyExpiryEnabled ?? false,
+            p?.NotifyHour ?? 8);
     }
 
     public async Task<(SettingsDto? Settings, string? Error)> UpdateSettingsAsync(int userId, UpdateSettingsRequest request)
     {
-        var user = await _db.Users.FindAsync(userId);
+        var user = await _db.Users
+            .Include(u => u.Preferences)
+            .FirstOrDefaultAsync(u => u.Id == userId);
         if (user is null) return (null, "userNotFound");
 
         if (request.Email is not null)
@@ -225,17 +251,26 @@ public class AuthService
 
                 user.Email = newEmail;
                 user.EmailConfirmed = false;
-                user.EmailConfirmationToken = null; // will be regenerated on resend
+                user.EmailConfirmationToken = null;
             }
         }
 
+        var prefs = user.Preferences ?? new UserPreferences { UserId = userId };
+        if (user.Preferences is null)
+            _db.UserPreferences.Add(prefs);
+
         if (request.NotificationsEnabled is not null)
-        {
-            user.NotificationsEnabled = request.NotificationsEnabled.Value;
-        }
+            prefs.NotificationsEnabled = request.NotificationsEnabled.Value;
+
+        if (request.NotifyExpiryEnabled is not null)
+            prefs.NotifyExpiryEnabled = request.NotifyExpiryEnabled.Value;
+
+        if (request.NotifyHour is not null)
+            prefs.NotifyHour = (short)Math.Clamp((int)request.NotifyHour.Value, 0, 23);
 
         await _db.SaveChangesAsync();
-        return (new SettingsDto(user.Email, user.EmailConfirmed, user.NotificationsEnabled), null);
+        return (new SettingsDto(user.Email, user.EmailConfirmed,
+            prefs.NotificationsEnabled, prefs.NotifyExpiryEnabled, prefs.NotifyHour), null);
     }
 
     public async Task<string?> ChangePasswordAsync(int userId, string currentPassword, string newPassword)
@@ -279,6 +314,9 @@ public class AuthService
     }
 
     private UserDto ToDto(AppUser u) =>
-        new(u.Id, u.Email, u.FullName, u.Role, u.IsActive, u.CreatedAt, u.EmailConfirmed, u.NotificationsEnabled,
-            u.CompanyProfile?.Id, u.CompanyProfile?.CompanyName, u.ActivatedAt, TrialDays, u.LastLogin, u.Locale, u.CommsLocale);
+        new(u.Id, u.Email, u.FullName, u.Role, u.IsActive, u.CreatedAt, u.EmailConfirmed,
+            u.Preferences?.NotificationsEnabled ?? true,
+            u.CompanyProfile?.Id, u.CompanyProfile?.CompanyName, u.ActivatedAt, TrialDays, u.LastLogin,
+            u.Preferences?.Locale ?? DefaultLocale,
+            u.Preferences?.CommsLocale ?? DefaultLocale);
 }

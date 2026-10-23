@@ -13,18 +13,21 @@ public class NotificationsController : ControllerBase
 {
     private readonly ProcurementsDbContext _db;
     private readonly EmailService _emailService;
+    private readonly ExpiryNotificationService _expiryService;
     private readonly IConfiguration _config;
     private readonly ILogger<NotificationsController> _logger;
 
     public NotificationsController(
         ProcurementsDbContext db,
         EmailService emailService,
+        ExpiryNotificationService expiryService,
         IConfiguration config,
         ILogger<NotificationsController> logger
     )
     {
         _db = db;
         _emailService = emailService;
+        _expiryService = expiryService;
         _config = config;
         _logger = logger;
     }
@@ -53,7 +56,7 @@ public class NotificationsController : ControllerBase
             return Ok(new { message = "No new matches, skipping notification" });
 
         var profile = await _db.CompanyProfiles
-            .Include(p => p.Users)
+            .Include(p => p.Users).ThenInclude(u => u.Preferences)
             .FirstOrDefaultAsync(p => p.Id == request.CompanyId);
 
         if (profile is null || profile.Users.Count == 0)
@@ -67,7 +70,7 @@ public class NotificationsController : ControllerBase
 
         foreach (var user in profile.Users)
         {
-            if (!user.NotificationsEnabled)
+            if (user.Preferences?.NotificationsEnabled != true)
             {
                 _logger.LogInformation("Skipping notification for user {UserId}: notifications disabled", user.Id);
                 continue;
@@ -76,7 +79,7 @@ public class NotificationsController : ControllerBase
             try
             {
                 await _emailService.SendMatchNotificationAsync(
-                    user.Email, user.FullName, profile.CompanyName, request.NewMatchCount, dashboardUrl, user.CommsLocale);
+                    user.Email, user.FullName, profile.CompanyName, request.NewMatchCount, dashboardUrl, user.Preferences?.CommsLocale);
                 _logger.LogInformation(
                     "Match notification sent to {Email} for company {CompanyId} ({Count} matches)",
                     user.Email, request.CompanyId, request.NewMatchCount);
@@ -115,7 +118,7 @@ public class NotificationsController : ControllerBase
         var companyIds = companies.Select(c => c.CompanyId).Distinct().ToList();
 
         var profiles = await _db.CompanyProfiles
-            .Include(p => p.Users)
+            .Include(p => p.Users).ThenInclude(u => u.Preferences)
             .Where(p => companyIds.Contains(p.Id))
             .ToListAsync();
         var profileById = profiles.ToDictionary(p => p.Id);
@@ -138,11 +141,11 @@ public class NotificationsController : ControllerBase
         var digestsSent = 0;
         foreach (var (user, total) in userTotals.Values)
         {
-            if (!user.NotificationsEnabled || total <= 0)
+            if (user.Preferences?.NotificationsEnabled != true || total <= 0)
                 continue;
             try
             {
-                await _emailService.SendMatchDigestAsync(user.Email, user.FullName, total, dashboardUrl, user.CommsLocale);
+                await _emailService.SendMatchDigestAsync(user.Email, user.FullName, total, dashboardUrl, user.Preferences?.CommsLocale);
                 digestsSent++;
             }
             catch (Exception ex)
@@ -197,7 +200,7 @@ public class NotificationsController : ControllerBase
     public async Task<IActionResult> SendManualToUser(int companyId, int userId)
     {
         var profile = await _db.CompanyProfiles
-            .Include(p => p.Users)
+            .Include(p => p.Users).ThenInclude(u => u.Preferences)
             .Include(p => p.Matches)
             .FirstOrDefaultAsync(p => p.Id == companyId);
 
@@ -216,7 +219,7 @@ public class NotificationsController : ControllerBase
         try
         {
             await _emailService.SendMatchNotificationAsync(
-                user.Email, user.FullName, profile.CompanyName, newCount, dashboardUrl, user.CommsLocale);
+                user.Email, user.FullName, profile.CompanyName, newCount, dashboardUrl, user.Preferences?.CommsLocale);
             _logger.LogInformation(
                 "Manual notification sent by admin to {Email} for company {CompanyId} ({Count} new matches)",
                 user.Email, companyId, newCount);
@@ -238,7 +241,7 @@ public class NotificationsController : ControllerBase
     public async Task<IActionResult> SendManual(int companyId)
     {
         var profile = await _db.CompanyProfiles
-            .Include(p => p.Users)
+            .Include(p => p.Users).ThenInclude(u => u.Preferences)
             .Include(p => p.Matches)
             .FirstOrDefaultAsync(p => p.Id == companyId);
 
@@ -260,7 +263,7 @@ public class NotificationsController : ControllerBase
             try
             {
                 await _emailService.SendMatchNotificationAsync(
-                    user.Email, user.FullName, profile.CompanyName, newCount, dashboardUrl, user.CommsLocale);
+                    user.Email, user.FullName, profile.CompanyName, newCount, dashboardUrl, user.Preferences?.CommsLocale);
                 _logger.LogInformation(
                     "Manual notification sent by admin to {Email} for company {CompanyId} ({Count} new matches)",
                     user.Email, companyId, newCount);
@@ -273,5 +276,26 @@ public class NotificationsController : ControllerBase
         }
 
         return Ok(new { message = $"Notification sent to {sent} user(s) ({newCount} new matches)", matchCount = newCount });
+    }
+
+    /// <summary>
+    /// Called by the scraper after each cycle. Finds matches approaching their
+    /// closing deadline (7d / 3d / 1d) and sends one digest email per eligible
+    /// user. Deduplication is handled via per-threshold stamp columns.
+    /// Secured by internal API key.
+    /// </summary>
+    [HttpPost("expiry-check")]
+    public async Task<IActionResult> ExpiryCheck()
+    {
+        var expectedKey = _config["App:InternalApiKey"];
+        if (string.IsNullOrEmpty(expectedKey))
+            return StatusCode(503, new { message = "Internal API key not configured" });
+
+        var providedKey = Request.Headers["X-Internal-Key"].FirstOrDefault();
+        if (providedKey != expectedKey)
+            return Unauthorized(new { message = "Invalid internal API key" });
+
+        var sent = await _expiryService.RunAsync();
+        return Ok(new { message = $"Expiry check complete — {sent} digest(s) sent", digestsSent = sent });
     }
 }

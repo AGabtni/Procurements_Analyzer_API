@@ -35,6 +35,7 @@ public class CompanyService
     {
         var user = await _db.Users
             .Include(u => u.CompanyProfile)
+            .Include(u => u.Preferences)
             .FirstOrDefaultAsync(u => u.Id == userId);
         if (user?.CompanyProfile is null) return null;
 
@@ -47,7 +48,7 @@ public class CompanyService
         };
         // Locale (UI language) drives on-screen match-reason language; comms_locale
         // is for emails only.
-        return new MatchAccess(user.CompanyProfile.Id, status, canSeeFull, user.Locale);
+        return new MatchAccess(user.CompanyProfile.Id, status, canSeeFull, user.Preferences?.Locale ?? "en-CA");
     }
 
     // ── Profile CRUD ──

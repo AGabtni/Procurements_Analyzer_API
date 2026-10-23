@@ -8,9 +8,18 @@ public record AuthResponse(string Token, string Email, string FullName, string R
 
 public record UserDto(int Id, string Email, string FullName, string Role, bool IsActive, DateTime CreatedAt, bool EmailConfirmed, bool NotificationsEnabled, int? CompanyId, string? CompanyName, DateTime? ActivatedAt, int TrialDays, DateTime? LastLogin, string Locale, string CommsLocale);
 
-public record UpdateSettingsRequest(string? Email, bool? NotificationsEnabled);
+public record UpdateSettingsRequest(
+    string? Email,
+    bool? NotificationsEnabled,
+    bool? NotifyExpiryEnabled,
+    short? NotifyHour);
 
-public record SettingsDto(string Email, bool EmailConfirmed, bool NotificationsEnabled);
+public record SettingsDto(
+    string Email,
+    bool EmailConfirmed,
+    bool NotificationsEnabled,
+    bool NotifyExpiryEnabled,
+    short NotifyHour);
 
 public record AdminPasswordConfirmRequest(string Password);
 

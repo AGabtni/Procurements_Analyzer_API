@@ -109,4 +109,49 @@
   <data name="Digest_Body_Other" xml:space="preserve">
     <value>&lt;strong&gt;{0}&lt;/strong&gt; new opportunities were found matching your profile on ProcurePortal.</value>
   </data>
+  <data name="Expiry_Subject_One" xml:space="preserve">
+    <value>Only a few days left to bid on this matching tender</value>
+  </data>
+  <data name="Expiry_Subject_Other" xml:space="preserve">
+    <value>Only a few days left to bid on these {0} tenders</value>
+  </data>
+  <data name="Expiry_SubjectShort_One" xml:space="preserve">
+    <value>Closing soon: 1 matching tender opportunity</value>
+  </data>
+  <data name="Expiry_SubjectShort_Other" xml:space="preserve">
+    <value>Closing soon: {0} matching tender opportunities</value>
+  </data>
+  <data name="Expiry_Heading" xml:space="preserve">
+    <value>Your Matches Are Closing Soon</value>
+  </data>
+  <data name="Expiry_Intro" xml:space="preserve">
+    <value>Hi {0}, only a few days are left to bid on these matching tenders for {1}.</value>
+  </data>
+  <data name="Expiry_DaysLeft_One" xml:space="preserve">
+    <value>{0} day left</value>
+  </data>
+  <data name="Expiry_DaysLeft_Other" xml:space="preserve">
+    <value>{0} days left</value>
+  </data>
+  <data name="Expiry_ClosesToday" xml:space="preserve">
+    <value>Closes today</value>
+  </data>
+  <data name="Expiry_ClosesTomorrow" xml:space="preserve">
+    <value>Closes tomorrow</value>
+  </data>
+  <data name="Expiry_HeaderTender" xml:space="preserve">
+    <value>Tender</value>
+  </data>
+  <data name="Expiry_HeaderDeadline" xml:space="preserve">
+    <value>Deadline</value>
+  </data>
+  <data name="Expiry_ViewTender" xml:space="preserve">
+    <value>View tender →</value>
+  </data>
+  <data name="Expiry_Button" xml:space="preserve">
+    <value>View All Expiring Matches</value>
+  </data>
+  <data name="Expiry_Keywords" xml:space="preserve">
+    <value>Matched based on: {0}</value>
+  </data>
 </root>

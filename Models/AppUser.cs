@@ -41,9 +41,6 @@ public class AppUser
     [Column("email_confirmation_token")]
     public string? EmailConfirmationToken { get; set; }
 
-    [Column("notifications_enabled")]
-    public bool NotificationsEnabled { get; set; } = true;
-
     [Column("activated_at")]
     public DateTime? ActivatedAt { get; set; }
 
@@ -54,9 +51,5 @@ public class AppUser
     [Column("has_seat")]
     public bool HasSeat { get; set; } = false;
 
-    [Column("locale")]
-    public string Locale { get; set; } = "en-CA";
-
-    [Column("comms_locale")]
-    public string CommsLocale { get; set; } = "en-CA";
+    public UserPreferences? Preferences { get; set; }
 }

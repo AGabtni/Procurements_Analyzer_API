@@ -30,6 +30,8 @@ builder.Services.AddScoped<CompanyService>();
 builder.Services.AddScoped<IndustryService>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<EmailService>();
+builder.Services.AddScoped<ExpiryNotificationService>();
+builder.Services.AddHostedService<ProcurePortal.API.Workers.ExpiryNotificationWorker>();
 builder.Services.AddLocalization(options => options.ResourcesPath = "Resources");
 
 // JWT Authentication

@@ -193,7 +193,90 @@ public class EmailService
             html
         );
     }
+
+    /// <summary>
+    /// Digest of matched tenders approaching their closing deadline.
+    /// Each row represents one match; rows may span multiple thresholds (7d/3d/1d).
+    /// </summary>
+    public async Task SendExpiryDigestAsync(
+        string toEmail,
+        string fullName,
+        string companyName,
+        IReadOnlyList<ExpiryMatchRow> matches,
+        string matchesUrl,
+        string? commsLocale)
+    {
+        var firstName = fullName.Split(' ')[0];
+        string subject, html;
+
+        using (new CommsCultureScope(commsLocale))
+        {
+            var count = matches.Count;
+            var longSubject = _loc[count == 1 ? "Expiry_Subject_One" : "Expiry_Subject_Other", count].Value;
+            subject = _loc[count == 1 ? "Expiry_SubjectShort_One" : "Expiry_SubjectShort_Other", count];
+
+            string DaysLabel(int days) => days switch
+            {
+                0 => _loc["Expiry_ClosesToday"].Value,
+                1 => _loc["Expiry_ClosesTomorrow"].Value,
+                _ => string.Format(_loc[days == 1 ? "Expiry_DaysLeft_One" : "Expiry_DaysLeft_Other"].Value, days),
+            };
+
+            static string UrgentColour(int days) => days <= 1 ? "#dc2626" : days <= 3 ? "#d97706" : "#2563eb";
+
+            var rows = string.Join("", matches.Select(m => $"""
+                <tr>
+                  <td style="padding:12px 16px;border-top:1px solid #e5e7eb;vertical-align:top;">
+                    <div style="font-weight:600;color:#111827;">{System.Net.WebUtility.HtmlEncode(m.TenderTitle)}</div>
+                    {(m.Organization is not null ? $"<div style=\"font-size:13px;color:#6b7280;margin-top:2px;\">{System.Net.WebUtility.HtmlEncode(m.Organization)}</div>" : "")}
+                  </td>
+                  <td style="padding:12px 16px;border-top:1px solid #e5e7eb;white-space:nowrap;vertical-align:top;">
+                    <span style="display:inline-block;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600;background:{UrgentColour(m.DaysLeft)}22;color:{UrgentColour(m.DaysLeft)};">
+                      {DaysLabel(m.DaysLeft)}
+                    </span>
+                    <div style="font-size:12px;color:#9ca3af;margin-top:4px;">{m.ClosingDate:MMM d, yyyy}</div>
+                  </td>
+                  <td style="padding:12px 16px;border-top:1px solid #e5e7eb;vertical-align:top;">
+                    <a href="{m.TenderUrl}" style="color:#2563eb;font-size:13px;">{_loc["Expiry_ViewTender"].Value}</a>
+                  </td>
+                </tr>
+                """));
+
+            html = $"""
+                <div style="font-family:sans-serif;max-width:640px;margin:0 auto;color:#111827;">
+                                    <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">{System.Net.WebUtility.HtmlEncode(longSubject)}</div>
+                  <h2 style="margin-bottom:4px;">{_loc["Expiry_Heading"].Value}</h2>
+                  <p style="color:#6b7280;margin-top:0;">{string.Format(_loc["Expiry_Intro"].Value, firstName, companyName)}</p>
+                  <table style="width:100%;border-collapse:collapse;font-size:14px;">
+                    <thead>
+                      <tr style="background:#f9fafb;">
+                                                <th style="padding:8px 16px;text-align:left;font-weight:600;color:#6b7280;font-size:12px;text-transform:uppercase;">{_loc["Expiry_HeaderTender"].Value}</th>
+                                                <th style="padding:8px 16px;text-align:left;font-weight:600;color:#6b7280;font-size:12px;text-transform:uppercase;">{_loc["Expiry_HeaderDeadline"].Value}</th>
+                        <th style="padding:8px 16px;text-align:left;font-weight:600;color:#6b7280;font-size:12px;text-transform:uppercase;"></th>
+                      </tr>
+                    </thead>
+                    <tbody>{rows}</tbody>
+                  </table>
+                  <div style="margin-top:24px;">
+                    <a href="{matchesUrl}" style="display:inline-block;padding:12px 24px;background:#2563eb;color:#fff;text-decoration:none;border-radius:6px;font-weight:600;">{_loc["Expiry_Button"].Value}</a>
+                  </div>
+                </div>
+                """;
+        }
+
+        await SendEmailAsync(toEmail, subject, html);
+    }
 }
 
 /// <summary>One company's line in the admin scrape summary.</summary>
 public record ScrapeSummaryRow(string Company, int Total, IReadOnlyDictionary<string, int> ByPortal);
+
+/// <summary>One expiring match row in the user expiry digest email.</summary>
+public record ExpiryMatchRow(
+    int MatchId,
+    int TenderId,
+    string TenderTitle,
+    string? Organization,
+    DateTime ClosingDate,
+    int DaysLeft,
+    string TenderUrl);

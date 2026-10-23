@@ -109,4 +109,49 @@
   <data name="Digest_Body_Other" xml:space="preserve">
     <value>&lt;strong&gt;{0}&lt;/strong&gt; nouveaux appels d'offres correspondent à votre profil sur ProcurePortal.</value>
   </data>
+  <data name="Expiry_Subject_One" xml:space="preserve">
+    <value>Plus que quelques jours pour répondre à cet appel d'offres</value>
+  </data>
+  <data name="Expiry_Subject_Other" xml:space="preserve">
+    <value>Plus que quelques jours pour répondre à ces {0} appels d'offres</value>
+  </data>
+  <data name="Expiry_SubjectShort_One" xml:space="preserve">
+    <value>Dernière chance pour cet appel d'offres correspondant</value>
+  </data>
+  <data name="Expiry_SubjectShort_Other" xml:space="preserve">
+    <value>{0} appels d'offres correspondants ferment bientôt</value>
+  </data>
+  <data name="Expiry_Heading" xml:space="preserve">
+    <value>Vos appels d'offres arrivent à échéance</value>
+  </data>
+  <data name="Expiry_Intro" xml:space="preserve">
+    <value>Bonjour {0}, il ne reste que quelques jours pour répondre à ces appels d'offres correspondants pour {1}.</value>
+  </data>
+  <data name="Expiry_DaysLeft_One" xml:space="preserve">
+    <value>{0} jour restant</value>
+  </data>
+  <data name="Expiry_DaysLeft_Other" xml:space="preserve">
+    <value>{0} jours restants</value>
+  </data>
+  <data name="Expiry_ClosesToday" xml:space="preserve">
+    <value>Ferme aujourd'hui</value>
+  </data>
+  <data name="Expiry_ClosesTomorrow" xml:space="preserve">
+    <value>Ferme demain</value>
+  </data>
+  <data name="Expiry_HeaderTender" xml:space="preserve">
+    <value>Appel d'offres</value>
+  </data>
+  <data name="Expiry_HeaderDeadline" xml:space="preserve">
+    <value>Date limite</value>
+  </data>
+  <data name="Expiry_ViewTender" xml:space="preserve">
+    <value>Voir l'appel d'offres →</value>
+  </data>
+  <data name="Expiry_Button" xml:space="preserve">
+    <value>Voir tous les appels imminents</value>
+  </data>
+  <data name="Expiry_Keywords" xml:space="preserve">
+    <value>Appariement basé sur : {0}</value>
+  </data>
 </root>
