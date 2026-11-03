@@ -1,5 +1,7 @@
 using System.Text;
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using ProcurePortal.API.Data;
@@ -113,7 +115,48 @@ builder.Services.AddCors(options =>
     );
 });
 
+// Configure Forwarded Headers
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+
+    // Caddy's container IP is assigned dynamically on the Docker network.
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
+
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.OnRejected = async (context, token) =>
+    {
+        context.HttpContext.Response.ContentType = "application/json";
+        await context.HttpContext.Response.WriteAsJsonAsync(
+            new { code = "tooManyRequests" },
+            token
+        );
+    };
+
+    options.AddPolicy(
+        "PwdResetLimitPolicy",
+        context =>
+        {
+            var ip = context.Connection.RemoteIpAddress?.ToString() ?? "unknown-ip";
+            return RateLimitPartition.GetFixedWindowLimiter(
+                ip,
+                factory: partition => new FixedWindowRateLimiterOptions()
+                {
+                    Window = TimeSpan.FromMinutes(5),
+                    PermitLimit = 5,
+                    AutoReplenishment = true,
+                }
+            );
+        }
+    );
+});
 var app = builder.Build();
+
+app.UseForwardedHeaders();
 
 // Swagger only in development
 if (app.Environment.IsDevelopment())
@@ -131,6 +174,7 @@ app.UseCors("AllowFrontend");
 // Health check
 app.MapGet("/health", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow }))
     .AllowAnonymous();
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

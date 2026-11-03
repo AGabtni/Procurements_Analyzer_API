@@ -16,7 +16,8 @@ public class EmailService
         IResend resend,
         IConfiguration config,
         ILogger<EmailService> logger,
-        IStringLocalizer<EmailService> loc)
+        IStringLocalizer<EmailService> loc
+    )
     {
         _resend = resend;
         _config = config;
@@ -38,8 +39,9 @@ public class EmailService
             _previous = CultureInfo.CurrentUICulture;
             try
             {
-                CultureInfo.CurrentUICulture =
-                    string.IsNullOrWhiteSpace(commsLocale) ? _previous : new CultureInfo(commsLocale);
+                CultureInfo.CurrentUICulture = string.IsNullOrWhiteSpace(commsLocale)
+                    ? _previous
+                    : new CultureInfo(commsLocale);
             }
             catch (CultureNotFoundException)
             {
@@ -67,22 +69,60 @@ public class EmailService
         _logger.LogInformation("Email sent to {Email}: {Subject}", toEmail, subject);
     }
 
-    public async Task SendConfirmationEmailAsync(string toEmail, string confirmUrl, string? commsLocale)
+    public async Task SendConfirmationEmailAsync(
+        string toEmail,
+        string confirmUrl,
+        string? commsLocale
+    )
     {
-        string subject, html;
+        string subject,
+            html;
         using (new CommsCultureScope(commsLocale))
         {
             subject = _loc["Confirm_Subject"];
             html = $"""
                 <h2>{_loc["Confirm_Heading"]}</h2>
                 <p>{_loc["Confirm_Intro"]}</p>
-                <p><a href="{confirmUrl}" style="display:inline-block;padding:12px 24px;background:#0d6efd;color:#fff;text-decoration:none;border-radius:6px;">{_loc["Confirm_Button"]}</a></p>
+                <p><a href="{confirmUrl}" style="display:inline-block;padding:12px 24px;background:#0d6efd;color:#fff;text-decoration:none;border-radius:6px;">{_loc[
+                    "Confirm_Button"
+                ]}</a></p>
                 <p>{_loc["Confirm_OrCopy"]} <br/>{confirmUrl}</p>
                 <p>{_loc["Confirm_Expires"]}</p>
                 """;
         }
 
         await SendEmailAsync(toEmail, subject, html);
+    }
+
+    public async Task SendPasswordResetEmailAsync(
+        string toEmail,
+        string resetUrl,
+        string? commsLocale
+    )
+    {
+        string subject,
+            html;
+        using (new CommsCultureScope(commsLocale))
+        {
+            subject = _loc["Reset_Password_Subject"];
+            html = $"""
+                <h2>{_loc["Reset_Password_Heading"]}</h2>
+                <p>{_loc["Reset_Password_Intro"]}</p>
+                <p><a href="{resetUrl}" style="display:inline-block;padding:12px 24px;background:#0d6efd;color:#fff;text-decoration:none;border-radius:6px;">{_loc[
+                    "Reset_Password_Button"
+                ]}</a></p>
+                <p>{_loc["Confirm_OrCopy"]} <br/>{resetUrl}</p>
+                <p>{_loc["Reset_Password_Expires"]}</p>
+                """;
+        }
+        try
+        {
+            await SendEmailAsync(toEmail, subject, html);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to send email.");
+        }
     }
 
     public async Task SendMatchNotificationAsync(
@@ -96,15 +136,26 @@ public class EmailService
     {
         var firstName = fullName.Split(' ')[0];
         var one = newMatchCount == 1;
-        string subject, html;
+        string subject,
+            html;
         using (new CommsCultureScope(commsLocale))
         {
-            subject = _loc[one ? "Notif_Subject_One" : "Notif_Subject_Other", newMatchCount, companyName];
+            subject = _loc[
+                one ? "Notif_Subject_One" : "Notif_Subject_Other",
+                newMatchCount,
+                companyName
+            ];
             html = $"""
                 <h2>{_loc["Matches_Heading"]}</h2>
                 <p>{_loc["Matches_Greeting", firstName]}</p>
-                <p>{_loc[one ? "Notif_Body_One" : "Notif_Body_Other", newMatchCount, companyName]}</p>
-                <p><a href="{dashboardUrl}" style="display:inline-block;padding:12px 24px;background:#0d6efd;color:#fff;text-decoration:none;border-radius:6px;">{_loc["Matches_Button"]}</a></p>
+                <p>{_loc[
+                    one ? "Notif_Body_One" : "Notif_Body_Other",
+                    newMatchCount,
+                    companyName
+                ]}</p>
+                <p><a href="{dashboardUrl}" style="display:inline-block;padding:12px 24px;background:#0d6efd;color:#fff;text-decoration:none;border-radius:6px;">{_loc[
+                    "Matches_Button"
+                ]}</a></p>
                 """;
         }
 
@@ -125,7 +176,8 @@ public class EmailService
     {
         var firstName = fullName.Split(' ')[0];
         var one = totalMatches == 1;
-        string subject, html;
+        string subject,
+            html;
         using (new CommsCultureScope(commsLocale))
         {
             subject = _loc[one ? "Digest_Subject_One" : "Digest_Subject_Other", totalMatches];
@@ -133,7 +185,9 @@ public class EmailService
                 <h2>{_loc["Matches_Heading"]}</h2>
                 <p>{_loc["Matches_Greeting", firstName]}</p>
                 <p>{_loc[one ? "Digest_Body_One" : "Digest_Body_Other", totalMatches]}</p>
-                <p><a href="{dashboardUrl}" style="display:inline-block;padding:12px 24px;background:#0d6efd;color:#fff;text-decoration:none;border-radius:6px;">{_loc["Matches_Button"]}</a></p>
+                <p><a href="{dashboardUrl}" style="display:inline-block;padding:12px 24px;background:#0d6efd;color:#fff;text-decoration:none;border-radius:6px;">{_loc[
+                    "Matches_Button"
+                ]}</a></p>
                 """;
         }
 
@@ -155,25 +209,37 @@ public class EmailService
         static string Portals(IReadOnlyDictionary<string, int> byPortal) =>
             byPortal.Count == 0
                 ? "&mdash;"
-                : string.Join(", ",
-                    byPortal.OrderByDescending(kv => kv.Value).Select(kv => $"{kv.Key}: {kv.Value}"));
+                : string.Join(
+                    ", ",
+                    byPortal.OrderByDescending(kv => kv.Value).Select(kv => $"{kv.Key}: {kv.Value}")
+                );
 
-        string rows = companies.Count == 0
-            ? "<tr><td colspan=\"3\" style=\"padding:6px 10px;\">No matches this cycle.</td></tr>"
-            : string.Join("", companies
-                .OrderByDescending(c => c.Total)
-                .Select(c => $"""
-                    <tr>
-                      <td style="padding:6px 10px;border-top:1px solid #ddd;">{c.Company}</td>
-                      <td style="padding:6px 10px;border-top:1px solid #ddd;text-align:right;">{c.Total}</td>
-                      <td style="padding:6px 10px;border-top:1px solid #ddd;">{Portals(c.ByPortal)}</td>
-                    </tr>
-                    """));
+        string rows =
+            companies.Count == 0
+                ? "<tr><td colspan=\"3\" style=\"padding:6px 10px;\">No matches this cycle.</td></tr>"
+                : string.Join(
+                    "",
+                    companies
+                        .OrderByDescending(c => c.Total)
+                        .Select(c =>
+                            $"""
+                            <tr>
+                              <td style="padding:6px 10px;border-top:1px solid #ddd;">{c.Company}</td>
+                              <td style="padding:6px 10px;border-top:1px solid #ddd;text-align:right;">{c.Total}</td>
+                              <td style="padding:6px 10px;border-top:1px solid #ddd;">{Portals(
+                                c.ByPortal
+                            )}</td>
+                            </tr>
+                            """
+                        )
+                );
 
         var html = $"""
             <h2>Scrape Cycle Summary</h2>
             <p><strong>{newTenderCount}</strong> new tender(s) scraped this cycle.</p>
-            <p><strong>{grandTotalMatches}</strong> total new match(es) across <strong>{companies.Count}</strong> compan{(companies.Count != 1 ? "ies" : "y")}.</p>
+            <p><strong>{grandTotalMatches}</strong> total new match(es) across <strong>{companies.Count}</strong> compan{(
+                companies.Count != 1 ? "ies" : "y"
+            )}.</p>
             <p>By portal: {Portals(grandByPortal)}</p>
             <table style="border-collapse:collapse;font-family:sans-serif;font-size:14px;">
               <thead>
@@ -204,61 +270,103 @@ public class EmailService
         string companyName,
         IReadOnlyList<ExpiryMatchRow> matches,
         string matchesUrl,
-        string? commsLocale)
+        string? commsLocale
+    )
     {
         var firstName = fullName.Split(' ')[0];
-        string subject, html;
+        string subject,
+            html;
 
         using (new CommsCultureScope(commsLocale))
         {
             var count = matches.Count;
-            var longSubject = _loc[count == 1 ? "Expiry_Subject_One" : "Expiry_Subject_Other", count].Value;
-            subject = _loc[count == 1 ? "Expiry_SubjectShort_One" : "Expiry_SubjectShort_Other", count];
+            var longSubject = _loc[
+                count == 1 ? "Expiry_Subject_One" : "Expiry_Subject_Other",
+                count
+            ].Value;
+            subject = _loc[
+                count == 1 ? "Expiry_SubjectShort_One" : "Expiry_SubjectShort_Other",
+                count
+            ];
 
-            string DaysLabel(int days) => days switch
-            {
-                0 => _loc["Expiry_ClosesToday"].Value,
-                1 => _loc["Expiry_ClosesTomorrow"].Value,
-                _ => string.Format(_loc[days == 1 ? "Expiry_DaysLeft_One" : "Expiry_DaysLeft_Other"].Value, days),
-            };
+            string DaysLabel(int days) =>
+                days switch
+                {
+                    0 => _loc["Expiry_ClosesToday"].Value,
+                    1 => _loc["Expiry_ClosesTomorrow"].Value,
+                    _ => string.Format(
+                        _loc[days == 1 ? "Expiry_DaysLeft_One" : "Expiry_DaysLeft_Other"].Value,
+                        days
+                    ),
+                };
 
-            static string UrgentColour(int days) => days <= 1 ? "#dc2626" : days <= 3 ? "#d97706" : "#2563eb";
+            static string UrgentColour(int days) =>
+                days <= 1 ? "#dc2626"
+                : days <= 3 ? "#d97706"
+                : "#2563eb";
 
-            var rows = string.Join("", matches.Select(m => $"""
-                <tr>
-                  <td style="padding:12px 16px;border-top:1px solid #e5e7eb;vertical-align:top;">
-                    <div style="font-weight:600;color:#111827;">{System.Net.WebUtility.HtmlEncode(m.TenderTitle)}</div>
-                    {(m.Organization is not null ? $"<div style=\"font-size:13px;color:#6b7280;margin-top:2px;\">{System.Net.WebUtility.HtmlEncode(m.Organization)}</div>" : "")}
-                  </td>
-                  <td style="padding:12px 16px;border-top:1px solid #e5e7eb;white-space:nowrap;vertical-align:top;">
-                    <span style="display:inline-block;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600;background:{UrgentColour(m.DaysLeft)}22;color:{UrgentColour(m.DaysLeft)};">
-                      {DaysLabel(m.DaysLeft)}
-                    </span>
-                    <div style="font-size:12px;color:#9ca3af;margin-top:4px;">{m.ClosingDate:MMM d, yyyy}</div>
-                  </td>
-                  <td style="padding:12px 16px;border-top:1px solid #e5e7eb;vertical-align:top;">
-                    <a href="{m.TenderUrl}" style="color:#2563eb;font-size:13px;">{_loc["Expiry_ViewTender"].Value}</a>
-                  </td>
-                </tr>
-                """));
+            var rows = string.Join(
+                "",
+                matches.Select(m =>
+                    $"""
+                    <tr>
+                      <td style="padding:12px 16px;border-top:1px solid #e5e7eb;vertical-align:top;">
+                        <div style="font-weight:600;color:#111827;">{System.Net.WebUtility.HtmlEncode(
+                        m.TenderTitle
+                    )}</div>
+                        {(
+                        m.Organization is not null
+                            ? $"<div style=\"font-size:13px;color:#6b7280;margin-top:2px;\">{System.Net.WebUtility.HtmlEncode(m.Organization)}</div>"
+                            : ""
+                    )}
+                      </td>
+                      <td style="padding:12px 16px;border-top:1px solid #e5e7eb;white-space:nowrap;vertical-align:top;">
+                        <span style="display:inline-block;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600;background:{UrgentColour(
+                        m.DaysLeft
+                    )}22;color:{UrgentColour(m.DaysLeft)};">
+                          {DaysLabel(m.DaysLeft)}
+                        </span>
+                        <div style="font-size:12px;color:#9ca3af;margin-top:4px;">{m.ClosingDate:MMM d, yyyy}</div>
+                      </td>
+                      <td style="padding:12px 16px;border-top:1px solid #e5e7eb;vertical-align:top;">
+                        <a href="{m.TenderUrl}" style="color:#2563eb;font-size:13px;">{_loc[
+                        "Expiry_ViewTender"
+                    ].Value}</a>
+                      </td>
+                    </tr>
+                    """
+                )
+            );
 
             html = $"""
                 <div style="font-family:sans-serif;max-width:640px;margin:0 auto;color:#111827;">
-                                    <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">{System.Net.WebUtility.HtmlEncode(longSubject)}</div>
+                                    <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">{System.Net.WebUtility.HtmlEncode(
+                    longSubject
+                )}</div>
                   <h2 style="margin-bottom:4px;">{_loc["Expiry_Heading"].Value}</h2>
-                  <p style="color:#6b7280;margin-top:0;">{string.Format(_loc["Expiry_Intro"].Value, firstName, companyName)}</p>
+                  <p style="color:#6b7280;margin-top:0;">{string.Format(
+                    _loc["Expiry_Intro"].Value,
+                    firstName,
+                    companyName
+                )}</p>
                   <table style="width:100%;border-collapse:collapse;font-size:14px;">
                     <thead>
                       <tr style="background:#f9fafb;">
-                                                <th style="padding:8px 16px;text-align:left;font-weight:600;color:#6b7280;font-size:12px;text-transform:uppercase;">{_loc["Expiry_HeaderTender"].Value}</th>
-                                                <th style="padding:8px 16px;text-align:left;font-weight:600;color:#6b7280;font-size:12px;text-transform:uppercase;">{_loc["Expiry_HeaderDeadline"].Value}</th>
+                                                <th style="padding:8px 16px;text-align:left;font-weight:600;color:#6b7280;font-size:12px;text-transform:uppercase;">{_loc[
+                    "Expiry_HeaderTender"
+                ].Value}</th>
+                                                <th style="padding:8px 16px;text-align:left;font-weight:600;color:#6b7280;font-size:12px;text-transform:uppercase;">{_loc[
+                    "Expiry_HeaderDeadline"
+                ].Value}</th>
                         <th style="padding:8px 16px;text-align:left;font-weight:600;color:#6b7280;font-size:12px;text-transform:uppercase;"></th>
                       </tr>
                     </thead>
                     <tbody>{rows}</tbody>
                   </table>
                   <div style="margin-top:24px;">
-                    <a href="{matchesUrl}" style="display:inline-block;padding:12px 24px;background:#2563eb;color:#fff;text-decoration:none;border-radius:6px;font-weight:600;">{_loc["Expiry_Button"].Value}</a>
+                    <a href="{matchesUrl}" style="display:inline-block;padding:12px 24px;background:#2563eb;color:#fff;text-decoration:none;border-radius:6px;font-weight:600;">{_loc[
+                    "Expiry_Button"
+                ].Value}</a>
                   </div>
                 </div>
                 """;
@@ -269,7 +377,11 @@ public class EmailService
 }
 
 /// <summary>One company's line in the admin scrape summary.</summary>
-public record ScrapeSummaryRow(string Company, int Total, IReadOnlyDictionary<string, int> ByPortal);
+public record ScrapeSummaryRow(
+    string Company,
+    int Total,
+    IReadOnlyDictionary<string, int> ByPortal
+);
 
 /// <summary>One expiring match row in the user expiry digest email.</summary>
 public record ExpiryMatchRow(
@@ -279,4 +391,5 @@ public record ExpiryMatchRow(
     string? Organization,
     DateTime ClosingDate,
     int DaysLeft,
-    string TenderUrl);
+    string TenderUrl
+);
