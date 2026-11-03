@@ -52,4 +52,16 @@ public class AppUser
     public bool HasSeat { get; set; } = false;
 
     public UserPreferences? Preferences { get; set; }
+
+    [Column("password_reset_token_hash")]
+    public byte[]? PasswordResetTokenHash { get; set; }
+
+    [Column("password_reset_expires_at")]
+    public DateTime? PasswordResetExpiresAt { get; set; }
+
+    [Column("password_reset_requested_at")]
+    public DateTime? PasswordResetRequestedAt { get; set; }
+
+    [Column("password_reset_count")]
+    public short PasswordResetCount { get; set; }
 }

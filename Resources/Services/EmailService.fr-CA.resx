@@ -85,6 +85,21 @@
   <data name="Confirm_Expires" xml:space="preserve">
     <value>Ce lien expire dans 48 heures.</value>
   </data>
+  <data name="Reset_Password_Subject" xml:space="preserve">
+    <value>Réinitialisez votre mot de passe — ProcurePortal</value>
+  </data>
+  <data name="Reset_Password_Heading" xml:space="preserve">
+    <value>Réinitialisez votre mot de passe</value>
+  </data>
+  <data name="Reset_Password_Intro" xml:space="preserve">
+    <value>Cliquez sur le lien ci-dessous pour réinitialiser votre mot de passe pour ProcurePortal : </value>
+  </data>
+  <data name="Reset_Password_Button" xml:space="preserve">
+    <value>Réinitialiser mon mot de passe</value>
+  </data>
+  <data name="Reset_Password_Expires" xml:space="preserve">
+    <value>Ce lien expire dans 30 minutes.</value>
+  </data>
   <data name="Notif_Subject_One" xml:space="preserve">
     <value>{0} nouvel appel d'offres pour {1}</value>
   </data>

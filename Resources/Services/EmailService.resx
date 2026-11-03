@@ -85,6 +85,21 @@
   <data name="Confirm_Expires" xml:space="preserve">
     <value>This link expires in 48 hours.</value>
   </data>
+  <data name="Reset_Password_Subject" xml:space="preserve">
+    <value>Reset your password — ProcurePortal</value>
+  </data>
+  <data name="Reset_Password_Heading" xml:space="preserve">
+    <value>Reset your password</value>
+  </data>
+  <data name="Reset_Password_Intro" xml:space="preserve">
+    <value>Click the link below to reset your password for ProcurePortal:</value>
+  </data>
+  <data name="Reset_Password_Button" xml:space="preserve">
+    <value>Reset Password</value>
+  </data>
+  <data name="Reset_Password_Expires" xml:space="preserve">
+    <value>This link expires in 30 minutes.</value>
+  </data>
   <data name="Notif_Subject_One" xml:space="preserve">
     <value>{0} new opportunity matching {1}</value>
   </data>

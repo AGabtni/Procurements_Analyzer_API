@@ -1,6 +1,8 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using ProcurePortal.API.Data;
@@ -20,10 +22,21 @@ public class AuthService
 
     public int TrialDays => int.TryParse(_config["App:TrialDays"], out var d) ? d : 14;
 
-    public async Task<(DateTime? ActivatedAt, int TrialDays, string? SubscriptionStatus, DateTime? TrialEndsAt, int? CompanyId, string Locale, string CommsLocale)> GetSessionMetaAsync(int userId)
+    private static readonly TimeSpan ResetTokenLifetime = TimeSpan.FromMinutes(30);
+    private static readonly TimeSpan ResetResendCooldown = TimeSpan.FromMinutes(2);
+
+    public async Task<(
+        DateTime? ActivatedAt,
+        int TrialDays,
+        string? SubscriptionStatus,
+        DateTime? TrialEndsAt,
+        int? CompanyId,
+        string Locale,
+        string CommsLocale
+    )> GetSessionMetaAsync(int userId)
     {
-        var user = await _db.Users
-            .Include(u => u.CompanyProfile)
+        var user = await _db
+            .Users.Include(u => u.CompanyProfile)
             .Include(u => u.Preferences)
             .FirstOrDefaultAsync(u => u.Id == userId);
         return (
@@ -47,12 +60,17 @@ public class AuthService
     private string InferLocaleFromRequest()
     {
         var header = _httpContextAccessor.HttpContext?.Request.Headers.AcceptLanguage.ToString();
-        if (string.IsNullOrWhiteSpace(header)) return DefaultLocale;
+        if (string.IsNullOrWhiteSpace(header))
+            return DefaultLocale;
         var first = header.Split(',')[0].Split(';')[0].Trim();
         return first.StartsWith("fr", StringComparison.OrdinalIgnoreCase) ? "fr-CA" : DefaultLocale;
     }
 
-    public AuthService(ProcurementsDbContext db, IConfiguration config, IHttpContextAccessor httpContextAccessor)
+    public AuthService(
+        ProcurementsDbContext db,
+        IConfiguration config,
+        IHttpContextAccessor httpContextAccessor
+    )
     {
         _db = db;
         _config = config;
@@ -61,8 +79,8 @@ public class AuthService
 
     public async Task<(AuthResponse? Response, string? Error)> LoginAsync(LoginRequest request)
     {
-        var user = await _db.Users
-            .Include(u => u.CompanyProfile)
+        var user = await _db
+            .Users.Include(u => u.CompanyProfile)
             .Include(u => u.Preferences)
             .FirstOrDefaultAsync(u => u.Email == request.Email.ToLower().Trim());
 
@@ -76,12 +94,24 @@ public class AuthService
         await _db.SaveChangesAsync();
 
         var token = GenerateToken(user);
-        return (new AuthResponse(token, user.Email, user.FullName, user.Role, user.EmailConfirmed,
-            user.Preferences?.NotificationsEnabled ?? true,
-            user.ActivatedAt, TrialDays, SubscriptionStatusOf(user),
-            user.CompanyProfile?.TrialEndsAt, user.CompanyId,
-            user.Preferences?.Locale ?? DefaultLocale,
-            user.Preferences?.CommsLocale ?? DefaultLocale), null);
+        return (
+            new AuthResponse(
+                token,
+                user.Email,
+                user.FullName,
+                user.Role,
+                user.EmailConfirmed,
+                user.Preferences?.NotificationsEnabled ?? true,
+                user.ActivatedAt,
+                TrialDays,
+                SubscriptionStatusOf(user),
+                user.CompanyProfile?.TrialEndsAt,
+                user.CompanyId,
+                user.Preferences?.Locale ?? DefaultLocale,
+                user.Preferences?.CommsLocale ?? DefaultLocale
+            ),
+            null
+        );
     }
 
     public async Task<bool> VerifyPasswordAsync(int userId, string password)
@@ -123,16 +153,23 @@ public class AuthService
 
     public async Task<List<UserDto>> GetAllUsersAsync()
     {
-        return await _db.Users
-            .Include(u => u.CompanyProfile)
+        return await _db
+            .Users.Include(u => u.CompanyProfile)
             .OrderBy(u => u.CreatedAt)
             .Select(u => new UserDto(
-                u.Id, u.Email, u.FullName, u.Role, u.IsActive, u.CreatedAt,
+                u.Id,
+                u.Email,
+                u.FullName,
+                u.Role,
+                u.IsActive,
+                u.CreatedAt,
                 u.EmailConfirmed,
                 u.Preferences != null ? u.Preferences.NotificationsEnabled : true,
                 u.CompanyProfile != null ? u.CompanyProfile.Id : (int?)null,
                 u.CompanyProfile != null ? u.CompanyProfile.CompanyName : null,
-                u.ActivatedAt, TrialDays, u.LastLogin,
+                u.ActivatedAt,
+                TrialDays,
+                u.LastLogin,
                 u.Preferences != null ? u.Preferences.Locale : DefaultLocale,
                 u.Preferences != null ? u.Preferences.CommsLocale : DefaultLocale
             ))
@@ -141,40 +178,57 @@ public class AuthService
 
     public async Task<List<UserDto>> GetUnlinkedUsersAsync()
     {
-        return await _db.Users
-            .Where(u => u.CompanyId == null && u.IsActive)
+        return await _db
+            .Users.Where(u => u.CompanyId == null && u.IsActive)
             .OrderBy(u => u.FullName)
             .Select(u => new UserDto(
-                u.Id, u.Email, u.FullName, u.Role, u.IsActive, u.CreatedAt,
+                u.Id,
+                u.Email,
+                u.FullName,
+                u.Role,
+                u.IsActive,
+                u.CreatedAt,
                 u.EmailConfirmed,
                 u.Preferences != null ? u.Preferences.NotificationsEnabled : true,
-                null, null, u.ActivatedAt, TrialDays, u.LastLogin,
+                null,
+                null,
+                u.ActivatedAt,
+                TrialDays,
+                u.LastLogin,
                 u.Preferences != null ? u.Preferences.Locale : DefaultLocale,
                 u.Preferences != null ? u.Preferences.CommsLocale : DefaultLocale
             ))
             .ToListAsync();
     }
 
-    public async Task<(bool Found, string? Locale, string? Error)> UpdateLocaleAsync(int userId, string locale)
+    public async Task<(bool Found, string? Locale, string? Error)> UpdateLocaleAsync(
+        int userId,
+        string locale
+    )
     {
         if (!IsSupportedLocale(locale))
             return (false, null, "unsupportedLocale");
 
         var prefs = await _db.UserPreferences.FindAsync(userId);
-        if (prefs is null) return (false, null, "userNotFound");
+        if (prefs is null)
+            return (false, null, "userNotFound");
 
         prefs.Locale = locale;
         await _db.SaveChangesAsync();
         return (true, prefs.Locale, null);
     }
 
-    public async Task<(bool Found, string? CommsLocale, string? Error)> UpdateCommsLocaleAsync(int userId, string commsLocale)
+    public async Task<(bool Found, string? CommsLocale, string? Error)> UpdateCommsLocaleAsync(
+        int userId,
+        string commsLocale
+    )
     {
         if (!IsSupportedLocale(commsLocale))
             return (false, null, "unsupportedLocale");
 
         var prefs = await _db.UserPreferences.FindAsync(userId);
-        if (prefs is null) return (false, null, "userNotFound");
+        if (prefs is null)
+            return (false, null, "userNotFound");
 
         prefs.CommsLocale = commsLocale;
         await _db.SaveChangesAsync();
@@ -184,19 +238,23 @@ public class AuthService
     public async Task<(bool Found, DateTime? ActivatedAt)> SetActiveAsync(int userId, bool active)
     {
         var user = await _db.Users.FindAsync(userId);
-        if (user is null) return (false, null);
+        if (user is null)
+            return (false, null);
         user.IsActive = active;
         user.ActivatedAt = active ? DateTime.UtcNow : null;
         await _db.SaveChangesAsync();
         return (true, user.ActivatedAt);
     }
 
-    public async Task<(string Token, string? CommsLocale, string? Error)> SendConfirmationAsync(int userId)
+    public async Task<(string Token, string? CommsLocale, string? Error)> SendConfirmationAsync(
+        int userId
+    )
     {
-        var user = await _db.Users
-            .Include(u => u.Preferences)
+        var user = await _db
+            .Users.Include(u => u.Preferences)
             .FirstOrDefaultAsync(u => u.Id == userId);
-        if (user is null) return (null!, null, "userNotFound");
+        if (user is null)
+            return (null!, null, "userNotFound");
 
         if (user.EmailConfirmed)
             return (null!, null, "emailAlreadyConfirmed");
@@ -210,10 +268,10 @@ public class AuthService
 
     public async Task<bool> ConfirmEmailAsync(string token)
     {
-        var user = await _db.Users
-            .FirstOrDefaultAsync(u => u.EmailConfirmationToken == token);
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.EmailConfirmationToken == token);
 
-        if (user is null) return false;
+        if (user is null)
+            return false;
 
         user.EmailConfirmed = true;
         user.EmailConfirmationToken = null;
@@ -223,23 +281,31 @@ public class AuthService
 
     public async Task<SettingsDto?> GetSettingsAsync(int userId)
     {
-        var user = await _db.Users
-            .Include(u => u.Preferences)
+        var user = await _db
+            .Users.Include(u => u.Preferences)
             .FirstOrDefaultAsync(u => u.Id == userId);
-        if (user is null) return null;
+        if (user is null)
+            return null;
         var p = user.Preferences;
-        return new SettingsDto(user.Email, user.EmailConfirmed,
+        return new SettingsDto(
+            user.Email,
+            user.EmailConfirmed,
             p?.NotificationsEnabled ?? true,
             p?.NotifyExpiryEnabled ?? false,
-            p?.NotifyHour ?? 8);
+            p?.NotifyHour ?? 8
+        );
     }
 
-    public async Task<(SettingsDto? Settings, string? Error)> UpdateSettingsAsync(int userId, UpdateSettingsRequest request)
+    public async Task<(SettingsDto? Settings, string? Error)> UpdateSettingsAsync(
+        int userId,
+        UpdateSettingsRequest request
+    )
     {
-        var user = await _db.Users
-            .Include(u => u.Preferences)
+        var user = await _db
+            .Users.Include(u => u.Preferences)
             .FirstOrDefaultAsync(u => u.Id == userId);
-        if (user is null) return (null, "userNotFound");
+        if (user is null)
+            return (null, "userNotFound");
 
         if (request.Email is not null)
         {
@@ -269,14 +335,27 @@ public class AuthService
             prefs.NotifyHour = (short)Math.Clamp((int)request.NotifyHour.Value, 0, 23);
 
         await _db.SaveChangesAsync();
-        return (new SettingsDto(user.Email, user.EmailConfirmed,
-            prefs.NotificationsEnabled, prefs.NotifyExpiryEnabled, prefs.NotifyHour), null);
+        return (
+            new SettingsDto(
+                user.Email,
+                user.EmailConfirmed,
+                prefs.NotificationsEnabled,
+                prefs.NotifyExpiryEnabled,
+                prefs.NotifyHour
+            ),
+            null
+        );
     }
 
-    public async Task<string?> ChangePasswordAsync(int userId, string currentPassword, string newPassword)
+    public async Task<string?> ChangePasswordAsync(
+        int userId,
+        string currentPassword,
+        string newPassword
+    )
     {
         var user = await _db.Users.FindAsync(userId);
-        if (user is null) return "userNotFound";
+        if (user is null)
+            return "userNotFound";
         if (!BCrypt.Net.BCrypt.Verify(currentPassword, user.PasswordHash))
             return "currentPasswordIncorrect";
 
@@ -288,10 +367,106 @@ public class AuthService
         return null;
     }
 
+    public async Task<(string Token, string? CommsLocale)> SendResetAsync(
+        ForgotPasswordRequest request
+    )
+    {
+        var user = await _db
+            .Users.Include(u => u.Preferences)
+            .FirstOrDefaultAsync(u => u.Email == request.Email.ToLower().Trim());
+
+        if (user is null)
+            return (null!, null);
+
+        if (!user.IsActive)
+            return (null!, null);
+
+        if (
+            (user.PasswordResetExpiresAt - DateTime.UtcNow)
+            >= (ResetTokenLifetime - ResetResendCooldown)
+        )
+            return (null!, null);
+
+        // Reset reset count if exceeded 24 hours window or user never requested before
+        if (
+            user.PasswordResetRequestedAt is null
+            || (DateTime.UtcNow - user.PasswordResetRequestedAt) >= TimeSpan.FromHours(24)
+        )
+        {
+            user.PasswordResetCount = 0;
+        }
+
+        if (user.PasswordResetCount >= 5)
+            return (null!, null);
+
+        byte[] tokenBytes = new byte[32];
+        RandomNumberGenerator.Fill(tokenBytes);
+
+        byte[] hashedBytes = SHA256.HashData(tokenBytes);
+
+        user.PasswordResetTokenHash = hashedBytes;
+        user.PasswordResetRequestedAt = DateTime.UtcNow;
+        user.PasswordResetExpiresAt = DateTime.UtcNow.AddMinutes(ResetTokenLifetime.TotalMinutes);
+        user.PasswordResetCount++;
+
+        await _db.SaveChangesAsync();
+
+        string base64UrlToken = WebEncoders.Base64UrlEncode(tokenBytes);
+
+        return (base64UrlToken, user.Preferences?.CommsLocale);
+    }
+
+    public async Task<(bool Success, string? Error)> ResetPasswordAsync(
+        ResetPasswordRequest request
+    )
+    {
+        if (request.NewPassword.Length < 8)
+            return (false, "passwordTooShort");
+
+        byte[] incomingToken;
+        try
+        {
+            incomingToken = WebEncoders.Base64UrlDecode(request.Token);
+        }
+        catch (FormatException)
+        {
+            return (false, "invalidPasswordResetToken");
+        }
+
+        byte[] hashedIncomingToken = SHA256.HashData(incomingToken);
+        var user = await _db.Users.FirstOrDefaultAsync(u =>
+            u.PasswordResetTokenHash == hashedIncomingToken
+        );
+
+        if (user is null)
+            return (false, "invalidPasswordResetToken");
+
+        if (!user.IsActive)
+            return (false, "accountInactive");
+
+        if (user.PasswordResetExpiresAt is null || DateTime.UtcNow >= user.PasswordResetExpiresAt)
+        {
+            user.PasswordResetExpiresAt = null;
+            user.PasswordResetTokenHash = null;
+            await _db.SaveChangesAsync();
+            return (false, "passwordResetTokenExpired");
+        }
+
+        user.PasswordResetExpiresAt = null;
+        user.PasswordResetTokenHash = null;
+        user.PasswordResetCount = 0;
+        user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
+
+        user.EmailConfirmed = true;
+        user.EmailConfirmationToken = null;
+
+        await _db.SaveChangesAsync();
+        return (true, null);
+    }
+
     private string GenerateToken(AppUser user)
     {
-        var key = new SymmetricSecurityKey(
-            Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
         var claims = new[]
@@ -306,17 +481,29 @@ public class AuthService
             issuer: _config["Jwt:Issuer"],
             audience: _config["Jwt:Audience"],
             claims: claims,
-            expires: DateTime.UtcNow.AddHours(
-                int.Parse(_config["Jwt:ExpiryHours"] ?? "24")),
-            signingCredentials: creds);
+            expires: DateTime.UtcNow.AddHours(int.Parse(_config["Jwt:ExpiryHours"] ?? "24")),
+            signingCredentials: creds
+        );
 
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
 
     private UserDto ToDto(AppUser u) =>
-        new(u.Id, u.Email, u.FullName, u.Role, u.IsActive, u.CreatedAt, u.EmailConfirmed,
+        new(
+            u.Id,
+            u.Email,
+            u.FullName,
+            u.Role,
+            u.IsActive,
+            u.CreatedAt,
+            u.EmailConfirmed,
             u.Preferences?.NotificationsEnabled ?? true,
-            u.CompanyProfile?.Id, u.CompanyProfile?.CompanyName, u.ActivatedAt, TrialDays, u.LastLogin,
+            u.CompanyProfile?.Id,
+            u.CompanyProfile?.CompanyName,
+            u.ActivatedAt,
+            TrialDays,
+            u.LastLogin,
             u.Preferences?.Locale ?? DefaultLocale,
-            u.Preferences?.CommsLocale ?? DefaultLocale);
+            u.Preferences?.CommsLocale ?? DefaultLocale
+        );
 }

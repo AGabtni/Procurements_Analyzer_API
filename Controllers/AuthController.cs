@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using ProcurePortal.API.DTOs;
 using ProcurePortal.API.Services;
 
@@ -48,21 +49,31 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> Me()
     {
         var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-        var (activatedAt, trialDays, subscriptionStatus, trialEndsAt, companyId, locale, commsLocale) = await _authService.GetSessionMetaAsync(userId);
-        return Ok(new
-        {
-            id = userId,
-            email = User.FindFirst(ClaimTypes.Email)?.Value,
-            fullName = User.Identity?.Name,
-            role = User.FindFirst(ClaimTypes.Role)?.Value,
+        var (
             activatedAt,
             trialDays,
             subscriptionStatus,
             trialEndsAt,
             companyId,
             locale,
-            commsLocale,
-        });
+            commsLocale
+        ) = await _authService.GetSessionMetaAsync(userId);
+        return Ok(
+            new
+            {
+                id = userId,
+                email = User.FindFirst(ClaimTypes.Email)?.Value,
+                fullName = User.Identity?.Name,
+                role = User.FindFirst(ClaimTypes.Role)?.Value,
+                activatedAt,
+                trialDays,
+                subscriptionStatus,
+                trialEndsAt,
+                companyId,
+                locale,
+                commsLocale,
+            }
+        );
     }
 
     [Authorize]
@@ -73,7 +84,8 @@ public class AuthController : ControllerBase
     {
         var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
         var (found, locale, error) = await _authService.UpdateLocaleAsync(userId, request.Locale);
-        if (!found) return BadRequest(new { code = error });
+        if (!found)
+            return BadRequest(new { code = error });
         return Ok(new { locale });
     }
 
@@ -84,8 +96,12 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> UpdateCommsLocale([FromBody] UpdateCommsLocaleRequest request)
     {
         var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-        var (found, commsLocale, error) = await _authService.UpdateCommsLocaleAsync(userId, request.CommsLocale);
-        if (!found) return BadRequest(new { code = error });
+        var (found, commsLocale, error) = await _authService.UpdateCommsLocaleAsync(
+            userId,
+            request.CommsLocale
+        );
+        if (!found)
+            return BadRequest(new { code = error });
         return Ok(new { commsLocale });
     }
 
@@ -128,6 +144,47 @@ public class AuthController : ControllerBase
         return Ok(new { message = "Email confirmed successfully" });
     }
 
+    // ── Password Reset ──
+
+    [HttpPost("forgot-password")]
+    [EnableRateLimiting("PwdResetLimitPolicy")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> SendResetPassword([FromBody] ForgotPasswordRequest request)
+    {
+        var (token, commsLocale) = await _authService.SendResetAsync(request);
+
+        if (token is not null)
+        {
+            var frontendUrl =
+                _config["App:FrontendUrl"]
+                ?? throw new InvalidOperationException("App:FrontendUrl must be configured");
+            var resetUrl = $"{frontendUrl}/reset-password?token={token}";
+
+            await _emailService.SendPasswordResetEmailAsync(request.Email, resetUrl, commsLocale);
+        }
+        return Ok(new { message = "Reset password email sent" });
+    }
+
+    [HttpPost("reset-password")]
+    [EnableRateLimiting("PwdResetLimitPolicy")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
+    {
+        if (string.IsNullOrEmpty(request.Token))
+            return BadRequest(new { code = "resetTokenRequired" });
+
+        if (string.IsNullOrEmpty(request.NewPassword))
+            return BadRequest(new { code = "newPasswordRequired" });
+
+        var (success, error) = await _authService.ResetPasswordAsync(request);
+
+        if (!success)
+            return BadRequest(new { code = error });
+
+        return Ok(new { message = "Password reset successfully" });
+    }
+
     // ── User settings ──
 
     [Authorize]
@@ -165,7 +222,11 @@ public class AuthController : ControllerBase
             return BadRequest(new { code = "passwordTooShort" });
 
         var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
-        var error = await _authService.ChangePasswordAsync(userId, request.CurrentPassword, request.NewPassword);
+        var error = await _authService.ChangePasswordAsync(
+            userId,
+            request.CurrentPassword,
+            request.NewPassword
+        );
         if (error is not null)
             return BadRequest(new { code = error });
 
@@ -197,7 +258,8 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> ActivateUser(int id)
     {
         var (found, activatedAt) = await _authService.SetActiveAsync(id, true);
-        if (!found) return NotFound();
+        if (!found)
+            return NotFound();
         return Ok(new { activatedAt });
     }
 
