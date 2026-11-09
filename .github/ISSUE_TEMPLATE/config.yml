@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 📖 Project roadmap & docs
+    url: https://github.com/AGabtni/ProcurePortal
+    about: Shared docs, roadmap, and cross-service epics live in the home-base repo.

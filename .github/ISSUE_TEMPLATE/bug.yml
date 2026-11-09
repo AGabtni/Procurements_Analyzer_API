@@ -1,0 +1,59 @@
+name: "🐞 Bug report"
+description: Report something that is broken or behaving incorrectly.
+title: "[Bug]: "
+labels: ["type:bug"]
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Which part of the system is affected?
+      options:
+        - API
+        - Dashboard
+        - Scraper
+        - Infra
+        - Cross-cutting
+    validations:
+      required: true
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      options:
+        - P0 - critical / blocking
+        - P1 - high
+        - P2 - normal
+        - P3 - low
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Describe the bug and the impact.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. ...
+        2. ...
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment / logs
+      description: Relevant versions, portal, company id, log excerpts (scrub secrets).
+    validations:
+      required: false
